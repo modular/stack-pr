@@ -180,6 +180,13 @@ If you prefer to merge via the github web UI, please don't forget to edit commit
 If you use the default commit message filled by the web UI, links to other PRs from the stack will be included in the commit message.
 """
 
+from enum import Enum, auto
+
+class MergeStatusMode(str, Enum):
+    CLEAN = "clean"
+    UNSTABLE = "unstable"
+    BYPASS = "bypass"
+
 
 # ===----------------------------------------------------------------------=== #
 # Class to work with git commit contents
@@ -458,7 +465,7 @@ def set_base_branches(st: List[StackEntry], target: str):
         e.base, prev_branch = prev_branch, e._head
 
 
-def verify(st: List[StackEntry], check_base: bool = False):
+def verify(st: List[StackEntry], merge_status_mode: MergeStatusMode, check_base: bool = False):
     log(h("Verifying stack info"), level=1)
     for index, e in enumerate(st):
         if e.has_missing_info():
@@ -506,9 +513,20 @@ def verify(st: List[StackEntry], check_base: bool = False):
             raise RuntimeError
 
         # The first entry on the stack needs to be actually mergeable on GitHub.
-        if check_base and index == 0 and d["mergeStateStatus"] != "CLEAN" and d["mergeStateStatus"] != "UNKNOWN":
-            error(ERROR_STACKINFO_PR_NOT_MERGEABLE.format(**locals()))
-            raise RuntimeError
+        match merge_status_mode:
+            case MergeStatusMode.CLEAN:
+                if check_base and index == 0 and d["mergeStateStatus"] != "CLEAN" and d["mergeStateStatus"] != "UNKNOWN":
+                    error(ERROR_STACKINFO_PR_NOT_MERGEABLE.format(**locals()))
+                    raise RuntimeError
+            case MergeStatusMode.UNSTABLE:
+                log("Checking merge status and allowing UNSTABLE status", level=1)
+                if check_base and index == 0 and d["mergeStateStatus"] != "CLEAN" and d["mergeStateStatus"] != "UNKNOWN" and d["mergeStateStatus"] != "UNSTABLE":
+                    error(ERROR_STACKINFO_PR_NOT_MERGEABLE.format(**locals()))
+                    raise RuntimeError
+            case MergeStatusMode.BYPASS | _:
+                log("Bypassing merge status check", level=1)
+                raise NotImplementedError("Not implemented yet") # I don't want to test this locally, so not implementing for now.
+        
 
 
 def print_stack(st: List[StackEntry], links: bool, level=1):
@@ -799,6 +817,7 @@ def update_local_base(base: str, remote: str, target: str, verbose: bool):
     )
 
 
+
 class CommonArgs(NamedTuple):
     """Class to help type checkers and separate implementation for CLI args."""
 
@@ -809,6 +828,7 @@ class CommonArgs(NamedTuple):
     hyperlinks: bool
     verbose: bool
     branch_name_template: str
+    merge_status_mode: MergeStatusMode 
 
     @classmethod
     def from_args(cls, args: argparse.Namespace) -> "CommonArgs":
@@ -820,6 +840,7 @@ class CommonArgs(NamedTuple):
             args.hyperlinks,
             args.verbose,
             args.branch_name_template,
+            args.merge_status_mode,
         )
 
 
@@ -848,6 +869,7 @@ def deduce_base(args: CommonArgs) -> CommonArgs:
         args.hyperlinks,
         args.verbose,
         args.branch_name_template,
+        args.merge_status_mode,
     )
 
 
@@ -929,7 +951,7 @@ def command_submit(
         create_pr(e, is_pr_draft, reviewer)
 
     # Verify consistency in everything we have so far
-    verify(st)
+    verify(st, args.merge_status_mode)
 
     # Embed stack-info into commit messages
     log(h("Updating commit messages with stack metadata"), level=1)
@@ -1095,7 +1117,7 @@ def command_land(args: CommonArgs):
     print_stack(st, args.hyperlinks)
 
     # Verify that the stack is correct before trying to land it.
-    verify(st, check_base=True)
+    verify(st, args.merge_status_mode, check_base=True)
 
     # All good, land the bottommost PR!
     land_pr(st[0], args.remote, args.target, args.verbose)
@@ -1307,6 +1329,13 @@ def create_argparser(
             "repo", "branch_name_template", fallback="$USERNAME/stack"
         ),
         help="A template for names of the branches stack-pr would use.",
+    )
+    common_parser.add_argument(
+        "--merge-status-mode",
+        type=MergeStatusMode,
+        choices=[x.value for x in MergeStatusMode],
+        default=MergeStatusMode.CLEAN,
+        help="Mode for checking merge status (clean, unstable, bypass). Default: clean. Ustable allows landing stacks where PRs still have failing checks, but are mergable (use with caution!). Bypass allows landing stacks where PRs are not mergable (do not use if you're not certain that's what you want).",
     )
 
     parser_submit = subparsers.add_parser(
