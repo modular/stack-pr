@@ -26,9 +26,7 @@ def fetch_checkout_commit(
     run_shell_command(
         ["git", "fetch", "--depth=1", remote, ref], cwd=repo_dir, quiet=quiet
     )
-    run_shell_command(
-        ["git", "checkout", "FETCH_HEAD"], cwd=repo_dir, quiet=quiet
-    )
+    run_shell_command(["git", "checkout", "FETCH_HEAD"], cwd=repo_dir, quiet=quiet)
 
 
 def is_full_git_sha(s: str) -> bool:

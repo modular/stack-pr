@@ -210,9 +210,7 @@ class CommitHeader:
         return self._search_group(RE_RAW_COMMIT_ID, "commit")
 
     def parents(self) -> List[str]:
-        return [
-            m.group("commit") for m in RE_RAW_PARENT.finditer(self.raw_header)
-        ]
+        return [m.group("commit") for m in RE_RAW_PARENT.finditer(self.raw_header)]
 
     def author(self) -> str:
         return self._search_group(RE_RAW_AUTHOR, "author")
@@ -225,8 +223,7 @@ class CommitHeader:
 
     def commit_msg(self) -> str:
         return "\n".join(
-            m.group("line")
-            for m in RE_RAW_COMMIT_MSG_LINE.finditer(self.raw_header)
+            m.group("line") for m in RE_RAW_COMMIT_MSG_LINE.finditer(self.raw_header)
         )
 
 
@@ -437,9 +434,7 @@ def get_stack(base: str, head: str, verbose: bool) -> List[StackEntry]:
     st: List[StackEntry] = []
     stack = (
         split_header(
-            get_command_output(
-                ["git", "rev-list", "--header", "^" + base, head]
-            )
+            get_command_output(["git", "rev-list", "--header", "^" + base, head])
         )
     )[::-1]
 
@@ -506,7 +501,11 @@ def verify(st: List[StackEntry], check_base: bool = False):
             raise RuntimeError
 
         # The first entry on the stack needs to be actually mergeable on GitHub.
-        if check_base and index == 0 and d["mergeStateStatus"] not in ["CLEAN", "UNKNOWN", "UNSTABLE"]:
+        if (
+            check_base
+            and index == 0
+            and d["mergeStateStatus"] not in ["CLEAN", "UNKNOWN", "UNSTABLE"]
+        ):
             error(ERROR_STACKINFO_PR_NOT_MERGEABLE.format(**locals()))
             raise RuntimeError
 
@@ -529,9 +528,7 @@ def draft_bitmask_type(value: str) -> List[bool]:
 # ===----------------------------------------------------------------------=== #
 # SUBMIT
 # ===----------------------------------------------------------------------=== #
-def add_or_update_metadata(
-    e: StackEntry, needs_rebase: bool, verbose: bool
-) -> bool:
+def add_or_update_metadata(e: StackEntry, needs_rebase: bool, verbose: bool) -> bool:
     if needs_rebase:
         run_shell_command(
             [
@@ -631,14 +628,14 @@ def push_branches(st: List[StackEntry], remote, verbose: bool):
 
 def print_cmd_failure_details(exc: SubprocessError):
     cmd_stdout = (
-        exc.stdout.decode("utf-8")
-        .replace("\\n", "\n")
-        .replace("\\t", "\t") if exc.stdout else None
+        exc.stdout.decode("utf-8").replace("\\n", "\n").replace("\\t", "\t")
+        if exc.stdout
+        else None
     )
     cmd_stderr = (
-        exc.stderr.decode("utf-8")
-        .replace("\\n", "\n")
-        .replace("\\t", "\t") if exc.stderr else None
+        exc.stderr.decode("utf-8").replace("\\n", "\n").replace("\\t", "\t")
+        if exc.stderr
+        else None
     )
     print(f"Exitcode: {exc.returncode}")
     print(f"Stdout: {cmd_stdout}")
@@ -716,9 +713,7 @@ def add_cross_links(st: List[StackEntry], keep_body: bool, verbose: bool):
         if keep_body:
             # Keep current body of the PR after the cross links component
             current_pr_body = get_current_pr_body(e)
-            pr_body.append(
-                current_pr_body.split(CROSS_LINKS_DELIMETER, 1)[-1].lstrip()
-            )
+            pr_body.append(current_pr_body.split(CROSS_LINKS_DELIMETER, 1)[-1].lstrip())
         else:
             pr_body.extend(
                 [
@@ -758,15 +753,11 @@ def add_cross_links(st: List[StackEntry], keep_body: bool, verbose: bool):
 #
 # To avoid this, we temporarily set all base branches to point to 'main' - once
 # all the branches are pushed we can set the actual base branches.
-def reset_remote_base_branches(
-    st: List[StackEntry], target: str, verbose: bool
-):
+def reset_remote_base_branches(st: List[StackEntry], target: str, verbose: bool):
     log(h("Resetting remote base branches"), level=1)
 
     for e in filter(lambda e: e.has_pr(), st):
-        run_shell_command(
-            ["gh", "pr", "edit", e.pr, "-B", target], quiet=not verbose
-        )
+        run_shell_command(["gh", "pr", "edit", e.pr, "-B", target], quiet=not verbose)
 
 
 # If local 'main' lags behind 'origin/main', and 'head' contains all commits
@@ -794,9 +785,7 @@ def should_update_local_base(
 
 def update_local_base(base: str, remote: str, target: str, verbose: bool):
     log(h(f"Updating local branch {base} to {remote}/{target}"), level=1)
-    run_shell_command(
-        ["git", "rebase", f"{remote}/{target}", base], quiet=not verbose
-    )
+    run_shell_command(["git", "rebase", f"{remote}/{target}", base], quiet=not verbose)
 
 
 class CommonArgs(NamedTuple):
@@ -882,9 +871,7 @@ def command_submit(
         args.head, args.base, args.remote, args.target, args.verbose
     ):
         update_local_base(args.base, args.remote, args.target, args.verbose)
-        run_shell_command(
-            ["git", "checkout", current_branch], quiet=not args.verbose
-        )
+        run_shell_command(["git", "checkout", current_branch], quiet=not args.verbose)
 
     # Determine what commits belong to the stack
     st = get_stack(args.base, args.head, args.verbose)
@@ -902,18 +889,14 @@ def command_submit(
 
     # Create local branches and initialize base and head fields in the stack
     # elements
-    init_local_branches(
-        st, args.remote, args.verbose, args.branch_name_template
-    )
+    init_local_branches(st, args.remote, args.verbose, args.branch_name_template)
     set_base_branches(st, args.target)
     print_stack(st, args.hyperlinks)
 
     # If the current branch contains commits from the stack, we will need to
     # rebase it in the end since the commits will be modified.
     top_branch = st[-1].head
-    need_to_rebase_current = is_ancestor(
-        top_branch, current_branch, args.verbose
-    )
+    need_to_rebase_current = is_ancestor(top_branch, current_branch, args.verbose)
 
     reset_remote_base_branches(st, args.target, args.verbose)
 
@@ -923,9 +906,7 @@ def command_submit(
     # Now we have all the branches, so we can create the corresponding PRs
     log(h("Submitting PRs"), level=1)
     for e_idx, e in enumerate(st):
-        is_pr_draft = draft or (
-            (draft_bitmask is not None) and draft_bitmask[e_idx]
-        )
+        is_pr_draft = draft or ((draft_bitmask is not None) and draft_bitmask[e_idx])
         create_pr(e, is_pr_draft, reviewer)
 
     # Verify consistency in everything we have so far
@@ -960,9 +941,7 @@ def command_submit(
         )
     else:
         log(h(f"Checking out the original branch '{current_branch}'"), level=1)
-        run_shell_command(
-            ["git", "checkout", current_branch], quiet=not args.verbose
-        )
+        run_shell_command(["git", "checkout", current_branch], quiet=not args.verbose)
 
     delete_local_branches(st, args.verbose)
     print_tips_after_export(st, args)
@@ -1012,9 +991,7 @@ def land_pr(e: StackEntry, remote: str, target: str, verbose: bool):
         raise
 
     # Switch PR base branch to 'main'
-    run_shell_command(
-        ["gh", "pr", "edit", e.pr, "-B", target], quiet=not verbose
-    )
+    run_shell_command(["gh", "pr", "edit", e.pr, "-B", target], quiet=not verbose)
 
     # Form the commit message: it should contain the original commit message
     # and nothing else.
@@ -1077,9 +1054,7 @@ def command_land(args: CommonArgs):
         args.head, args.base, args.remote, args.target, args.verbose
     ):
         update_local_base(args.base, args.remote, args.target, args.verbose)
-        run_shell_command(
-            ["git", "checkout", current_branch], quiet=not args.verbose
-        )
+        run_shell_command(["git", "checkout", current_branch], quiet=not args.verbose)
 
     # Determine what commits belong to the stack
     st = get_stack(args.base, args.head, args.verbose)
@@ -1114,9 +1089,7 @@ def command_land(args: CommonArgs):
         )
 
     # Delete local and remote stack branches
-    run_shell_command(
-        ["git", "checkout", current_branch], quiet=not args.verbose
-    )
+    run_shell_command(["git", "checkout", current_branch], quiet=not args.verbose)
 
     delete_local_branches(st, args.verbose)
 
@@ -1166,9 +1139,7 @@ def command_abandon(args: CommonArgs):
         return
     current_branch = get_current_branch_name()
 
-    init_local_branches(
-        st, args.remote, args.verbose, args.branch_name_template
-    )
+    init_local_branches(st, args.remote, args.verbose, args.branch_name_template)
     set_base_branches(st, args.target)
     print_stack(st, args.hyperlinks)
 
@@ -1184,9 +1155,7 @@ def command_abandon(args: CommonArgs):
     )
 
     delete_local_branches(st, args.verbose)
-    delete_remote_branches(
-        st, args.remote, args.verbose, args.branch_name_template
-    )
+    delete_remote_branches(st, args.remote, args.verbose, args.branch_name_template)
     log(h(blue("SUCCESS!")), level=1)
 
 
@@ -1235,10 +1204,7 @@ def command_view(args: CommonArgs):
             level=1,
         )
         log(
-            (
-                "Consider updating your local branch by"
-                " running the following commands:"
-            ),
+            ("Consider updating your local branch by running the following commands:"),
             level=1,
         )
         log(
@@ -1279,9 +1245,7 @@ def create_argparser(
         help="Remote name",
     )
     common_parser.add_argument("-B", "--base", help="Local base branch")
-    common_parser.add_argument(
-        "-H", "--head", default="HEAD", help="Local head branch"
-    )
+    common_parser.add_argument("-H", "--head", default="HEAD", help="Local head branch")
     common_parser.add_argument(
         "-T",
         "--target",
@@ -1303,9 +1267,7 @@ def create_argparser(
     )
     common_parser.add_argument(
         "--branch-name-template",
-        default=config.get(
-            "repo", "branch_name_template", fallback="$USERNAME/stack"
-        ),
+        default=config.get("repo", "branch_name_template", fallback="$USERNAME/stack"),
         help="A template for names of the branches stack-pr would use.",
     )
 
