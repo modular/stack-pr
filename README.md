@@ -239,9 +239,52 @@ stack-pr land -B HEAD~5 -H HEAD~2
 ```
 
 ## Command Line Options Reference
-The section is not added yet, contributions are welcome!
+
+### Common Arguments
+
+These arguments can be used with any subcommand:
+
+- `-R, --remote`: Remote name (default: "origin")
+- `-B, --base`: Local base branch
+- `-H, --head`: Local head branch (default: "HEAD")
+- `-T, --target`: Remote target branch (default: "main")
+- `--hyperlinks/--no-hyperlinks`: Enable/disable hyperlink support (default: enabled)
+- `-V, --verbose`: Enable verbose output from Git subcommands (default: false)
+- `--branch-name-template`: Template for generated branch names (default: "$USERNAME/stack")
+
+### Subcommands
+
+#### submit (alias: export)
+
+Submit a stack of PRs
+
+Options:
+
+- `--keep-body`: Keep current PR body, only update cross-links (default: false)
+- `-d, --draft`: Submit PRs in draft mode (default: false)
+- `--draft-bitmask`: Bitmask for setting draft status per PR
+- `--reviewer`: List of reviewers for the PRs (default: from $STACK_PR_DEFAULT_REVIEWER or config)
+
+#### land
+
+Land the current stack
+
+Takes no additional arguments beyond common ones.
+
+#### abandon
+
+Abandon the current stack
+
+Takes no additional arguments beyond common ones.
+
+#### view
+
+Inspect the current stack
+
+Takes no additional arguments beyond common ones.
 
 ### Config files
+
 Default values for command line options can be specified via a config file.
 Path to the config file can be specified via `STACKPR_CONFIG` envvar, and by
 default it's assumed to be `.stack-pr.cfg` in the current folder.
