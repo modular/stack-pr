@@ -1110,14 +1110,18 @@ def command_land(args: CommonArgs):
 # ===----------------------------------------------------------------------=== #
 # ABANDON
 # ===----------------------------------------------------------------------=== #
-def strip_metadata(e: StackEntry, verbose: bool) -> str:
+def strip_metadata(e: StackEntry, needs_rebase: bool, verbose: bool) -> str:
     m = e.commit.commit_msg()
 
     m = RE_STACK_INFO_LINE.sub("", m)
-    run_shell_command(
-        ["git", "rebase", e.base, e.head, "--committer-date-is-author-date"],
-        quiet=not verbose,
-    )
+    if needs_rebase:
+        run_shell_command(
+            ["git", "rebase", e.base, e.head, "--committer-date-is-author-date"],
+            quiet=not verbose,
+        )
+    else:
+        run_shell_command(["git", "checkout", e.head], quiet=not verbose)
+
     run_shell_command(
         ["git", "commit", "--amend", "-F", "-"],
         input=m.encode(),
@@ -1146,8 +1150,13 @@ def command_abandon(args: CommonArgs):
     log(h("Stripping stack metadata from commit messages"), level=1)
 
     last_hash = ""
+    # The first commit doesn't need to be rebased since its will not change.
+    # The rest of the commits need to be rebased since their base will be
+    # changed as we strip the metadata from the commit messages.
+    need_rebase = False
     for e in st:
-        last_hash = strip_metadata(e, args.verbose)
+        last_hash = strip_metadata(e, need_rebase, args.verbose)
+        need_rebase = True
 
     log(h("Rebasing the current branch on top of updated top branch"), level=1)
     run_shell_command(
