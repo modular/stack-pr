@@ -1313,6 +1313,13 @@ def create_argparser(
         ),
         help="List of reviewers for the PR",
     )
+    parser_submit.add_argument(
+        "-s",
+        "--stash",
+        action="store_true",
+        default=config.getboolean("common", "stash", fallback=False),
+        help="Stash all uncommited changes before submitting the PR",
+    )
 
     subparsers.add_parser(
         "land",
@@ -1363,6 +1370,9 @@ def main():
     current_branch = get_current_branch_name()
     get_branch_name_base(common_args.branch_name_template)
     try:
+        if args.stash:
+            run_shell_command(["git", "stash", "save"], quiet=not common_args.verbose)
+
         if args.command != "view" and not is_repo_clean():
             error(ERROR_REPO_DIRTY)
             return
@@ -1392,6 +1402,9 @@ def main():
         if isinstance(exc, SubprocessError):
             print_cmd_failure_details(exc)
         raise
+    finally:
+        if args.stash:
+            run_shell_command(["git", "stash", "pop"], quiet=not common_args.verbose)
 
 
 if __name__ == "__main__":
