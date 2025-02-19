@@ -264,6 +264,7 @@ Options:
 - `-d, --draft`: Submit PRs in draft mode (default: false)
 - `--draft-bitmask`: Bitmask for setting draft status per PR
 - `--reviewer`: List of reviewers for the PRs (default: from $STACK_PR_DEFAULT_REVIEWER or config)
+- `-s, --stash`: Stash all uncommitted changes before submitting the PR
 
 #### land
 
@@ -297,6 +298,7 @@ verbose=True
 hyperlinks=True
 draft=False
 keep_body=False
+stash=False
 [repo]
 remote=origin
 target=main
