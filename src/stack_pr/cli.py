@@ -1370,7 +1370,7 @@ def main():
     current_branch = get_current_branch_name()
     get_branch_name_base(common_args.branch_name_template)
     try:
-        if args.stash:
+        if args.command in ["submit", "export"] and args.stash:
             run_shell_command(["git", "stash", "save"], quiet=not common_args.verbose)
 
         if args.command != "view" and not is_repo_clean():
@@ -1403,7 +1403,7 @@ def main():
             print_cmd_failure_details(exc)
         raise
     finally:
-        if args.stash:
+        if args.command in ["submit", "export"] and args.stash:
             run_shell_command(["git", "stash", "pop"], quiet=not common_args.verbose)
 
 
