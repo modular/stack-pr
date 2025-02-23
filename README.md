@@ -250,7 +250,10 @@ These arguments can be used with any subcommand:
 - `-T, --target`: Remote target branch (default: "main")
 - `--hyperlinks/--no-hyperlinks`: Enable/disable hyperlink support (default: enabled)
 - `-V, --verbose`: Enable verbose output from Git subcommands (default: false)
-- `--branch-name-template`: Template for generated branch names (default: "$USERNAME/stack")
+- `--branch-name-template`: Template for generated branch names (default: "$USERNAME/stack"). The following variables are supported:
+   - `$USERNAME`: The username of the current user
+   - `$BRANCH`: The current branch name
+   - `$ID`: The location for the ID of the branch. The ID is determined by the order of creation of the branches. If `$ID` is not found in the template, the template will be appended with `/$ID`.
 
 ### Subcommands
 
