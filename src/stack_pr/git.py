@@ -12,6 +12,15 @@ class GitError(Exception):
     pass
 
 
+username_override = None
+
+
+def override_username(username: str):
+    """Override username for testing purposes. Call with None to reset."""
+    global username_override
+    username_override = username
+
+
 def fetch_checkout_commit(
     repo_dir: Path, ref: str, quiet: bool, remote: str = "origin"
 ):
@@ -182,12 +191,16 @@ def check_gh_installed():
 def get_gh_username() -> str:
     """Return the current github username.
 
+    If username_override is set, it will be used instead of the actual username.
+
     Returns:
         Current github username as a string.
 
     Raises:
         GitError: if called outside a git repo, or.
     """
+    if username_override is not None:
+        return username_override
 
     user_query = get_command_output(
         [

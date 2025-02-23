@@ -3,6 +3,7 @@ from pathlib import Path
 
 sys.path.append(str(Path(__file__).parent.parent / "src"))
 
+from stack_pr.git import override_username
 from stack_pr.cli import (
     get_branch_id,
     generate_branch_name,
@@ -16,6 +17,7 @@ import pytest
 
 @pytest.fixture(scope="module")
 def username():
+    override_username("TestBot")
     return get_gh_username()
 
 
@@ -51,33 +53,38 @@ def test_generate_branch_name():
 
 
 def test_get_taken_branch_ids():
-    template = "User/stack/$ID"
+    template = "$USERNAME/stack/$ID"
     refs = [
-        "refs/remotes/origin/User/stack/104",
-        "refs/remotes/origin/User/stack/105",
-        "refs/remotes/origin/User/stack/134",
+        "refs/remotes/origin/TestBot/stack/104",
+        "refs/remotes/origin/TestBot/stack/105",
+        "refs/remotes/origin/TestBot/stack/134",
     ]
     assert get_taken_branch_ids(refs, template) == [104, 105, 134]
-    refs = ["User/stack/104", "User/stack/105", "User/stack/134"]
+    refs = ["TestBot/stack/104", "TestBot/stack/105", "TestBot/stack/134"]
     assert get_taken_branch_ids(refs, template) == [104, 105, 134]
-    refs = ["User/stack/104", "AAAA/stack/105", "User/stack/134", "User/stack/bbb"]
+    refs = [
+        "TestBot/stack/104",
+        "AAAA/stack/105",
+        "TestBot/stack/134",
+        "TestBot/stack/bbb",
+    ]
     assert get_taken_branch_ids(refs, template) == [104, 134]
 
 
 def test_generate_available_branch_name():
-    template = "User/stack/$ID"
+    template = "$USERNAME/stack/$ID"
     refs = [
-        "refs/remotes/origin/User/stack/104",
-        "refs/remotes/origin/User/stack/105",
-        "refs/remotes/origin/User/stack/134",
+        "refs/remotes/origin/TestBot/stack/104",
+        "refs/remotes/origin/TestBot/stack/105",
+        "refs/remotes/origin/TestBot/stack/134",
     ]
-    assert generate_available_branch_name(refs, template) == "User/stack/135"
+    assert generate_available_branch_name(refs, template) == "TestBot/stack/135"
     refs = []
-    assert generate_available_branch_name(refs, template) == "User/stack/1"
-    template = "User-stack-$ID"
+    assert generate_available_branch_name(refs, template) == "TestBot/stack/1"
+    template = "$USERNAME-stack-$ID"
     refs = [
-        "refs/remotes/origin/User-stack-104",
-        "refs/remotes/origin/User-stack-105",
-        "refs/remotes/origin/User-stack-134",
+        "refs/remotes/origin/TestBot-stack-104",
+        "refs/remotes/origin/TestBot-stack-105",
+        "refs/remotes/origin/TestBot-stack-134",
     ]
-    assert generate_available_branch_name(refs, template) == "User-stack-135"
+    assert generate_available_branch_name(refs, template) == "TestBot-stack-135"
