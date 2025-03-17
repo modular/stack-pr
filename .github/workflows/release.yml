@@ -15,15 +15,15 @@ jobs:
     
     steps:
       - name: "Checkout code"
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
 
       - name: Set up Python 3.9
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5
         with:
           python-version: "3.9"
 
       - name: Setup pdm
-        uses: pdm-project/setup-pdm@v3
+        uses: pdm-project/setup-pdm@ddc33ca746b5716353581f988b29464200212702 # v3
         with:
           python-version: "3.9"
           cache: true
@@ -32,4 +32,4 @@ jobs:
         run: pdm build
       
       - name: Publish package distributions to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@76f52bc884231f62b9a034ebfe128415bbaabdfc # release/v1
