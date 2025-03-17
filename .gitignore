@@ -85,3 +85,5 @@ pixi.lock
 
 .stack-pr.cfg
 .vscode
+
+.DS_Store
