@@ -1,19 +1,31 @@
+from __future__ import annotations
+
 import subprocess
+import sys
+from collections.abc import Iterable
+from logging import getLogger
 from pathlib import Path
-from typing import Any, Iterable, Union
+
+if sys.version_info >= (3, 13):
+    # Unpack moved to typing
+    from typing import Any, Union
+else:
+    from typing import Union
+
+    from typing_extensions import Any
+
+
+logger = getLogger(__name__)
 
 ShellCommand = Iterable[Union[str, Path]]
 
-SHOW_COMMANDS = False
-
-
-def set_show_commands(val: bool):
-    global SHOW_COMMANDS
-    SHOW_COMMANDS = val
-
 
 def run_shell_command(
-    cmd: ShellCommand, *, quiet: bool, check: bool = True, **kwargs: Any
+    cmd: ShellCommand,
+    *,
+    quiet: bool,
+    check: bool = True,
+    **kwargs: Any,  # noqa: ANN401
 ) -> subprocess.CompletedProcess:
     """Runs a shell command using the arguments provided.
 
@@ -32,15 +44,16 @@ def run_shell_command(
     if "shell" in kwargs:
         raise ValueError("shell support has been removed")
     _ = subprocess.list2cmdline(cmd)
-    kwargs.update({"check": check})
     if quiet:
         kwargs.update({"stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL})
-    if SHOW_COMMANDS:
-        print(f"Running: {cmd}")
-    return subprocess.run(list(map(str, cmd)), **kwargs)
+    logger.debug("Running: %s", cmd)
+    return subprocess.run(list(map(str, cmd)), **kwargs, check=check)
 
 
-def get_command_output(cmd: ShellCommand, **kwargs: Any) -> str:
+def get_command_output(
+    cmd: ShellCommand,
+    **kwargs: Any,  # noqa: ANN401
+) -> str:
     """A wrapper over run_shell_command that captures stdout into a string.
 
     Args:
@@ -57,4 +70,4 @@ def get_command_output(cmd: ShellCommand, **kwargs: Any) -> str:
     if "capture_output" in kwargs:
         raise ValueError("Cannot pass capture_output when using get_command_output")
     proc = run_shell_command(cmd, capture_output=True, quiet=False, **kwargs)
-    return proc.stdout.decode("utf-8").rstrip()
+    return str(proc.stdout.decode("utf-8").rstrip())
