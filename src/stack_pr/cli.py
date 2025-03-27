@@ -877,7 +877,7 @@ def deduce_base(args: CommonArgs) -> CommonArgs:
     and to do that we pick B as our base:
 
     --> a ----> b  ----> c ----> d
-    (main)     \\          (origin/main)
+    (main)     \          (origin/main)
                 \
                     ---> e ----> f
                             (head)
