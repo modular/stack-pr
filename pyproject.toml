@@ -68,7 +68,7 @@ pdm = ">=2.17.1,<2.18"
 [tool.pixi.tasks]
 
 [tool.pixi.dependencies]
-python = ">=3.9"
+python = "3.9.*"
 
 [tool.ruff]
 
@@ -143,7 +143,6 @@ ignore = [
 
 # Borrowing a rustism and allow unused variables when underscore-prefixed.
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
-
 
 [tool.ruff.lint.isort]
 known-first-party = ["stack_pr"]
