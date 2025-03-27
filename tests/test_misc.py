@@ -3,56 +3,58 @@ from pathlib import Path
 
 sys.path.append(str(Path(__file__).parent.parent / "src"))
 
-from stack_pr.git import override_username
-from stack_pr.cli import (
-    get_branch_id,
-    generate_branch_name,
-    get_taken_branch_ids,
-    get_gh_username,
-    generate_available_branch_name,
-)
-
 import pytest
+
+from stack_pr.cli import (
+    generate_available_branch_name,
+    generate_branch_name,
+    get_branch_id,
+    get_gh_username,
+    get_taken_branch_ids,
+)
+from stack_pr.git import git_config
 
 
 @pytest.fixture(scope="module")
-def username():
-    override_username("TestBot")
+def username() -> str:
+    git_config.set_username_override("TestBot")
     return get_gh_username()
 
 
 @pytest.mark.parametrize(
-    "template,branch_name,expected",
+    ("template", "branch_name", "expected"),
     [
         ("feature-$ID-desc", "feature-123-desc", "123"),
         ("$USERNAME/stack/$ID", "{username}/stack/99", "99"),
         ("$USERNAME/stack/$ID", "refs/remote/origin/{username}/stack/99", "99"),
     ],
 )
-def test_get_branch_id(username, template, branch_name, expected):
+def test_get_branch_id(
+    username: str, template: str, branch_name: str, expected: str
+) -> None:
     branch_name = branch_name.format(username=username)
     assert get_branch_id(template, branch_name) == expected
 
 
 @pytest.mark.parametrize(
-    "template,branch_name",
+    ("template", "branch_name"),
     [
         ("feature/$ID/desc", "feature/abc/desc"),
         ("feature/$ID/desc", "wrong/format"),
         ("$USERNAME/stack/$ID", "{username}/main/99"),
     ],
 )
-def test_get_branch_id_no_match(username, template, branch_name):
+def test_get_branch_id_no_match(username: str, template: str, branch_name: str) -> None:
     branch_name = branch_name.format(username=username)
     assert get_branch_id(template, branch_name) is None
 
 
-def test_generate_branch_name():
+def test_generate_branch_name() -> None:
     template = "feature/$ID/description"
-    assert generate_branch_name(template, "123") == "feature/123/description"
+    assert generate_branch_name(template, 123) == "feature/123/description"
 
 
-def test_get_taken_branch_ids():
+def test_get_taken_branch_ids() -> None:
     template = "$USERNAME/stack/$ID"
     refs = [
         "refs/remotes/origin/TestBot/stack/104",
@@ -71,7 +73,7 @@ def test_get_taken_branch_ids():
     assert get_taken_branch_ids(refs, template) == [104, 134]
 
 
-def test_generate_available_branch_name():
+def test_generate_available_branch_name() -> None:
     template = "$USERNAME/stack/$ID"
     refs = [
         "refs/remotes/origin/TestBot/stack/104",
