@@ -12,16 +12,20 @@ stacked PRs one can group related changes together making them easier to
 review.
 
 Example:
+
 ![StackedPRExample1](https://modular-assets.s3.amazonaws.com/images/stackpr/example_0.png)
 
-## Dependencies
+## Installation
+
+### Dependencies
 
 This is a non-comprehensive list of dependencies required by `stack-pr.py`:
 
 - Install `gh`, e.g., `brew install gh` on MacOS.
 - Run `gh auth login` with SSH
 
-## Installation
+
+### Installation with `pipx`
 
 To install via [pipx](https://pipx.pypa.io/stable/) run:
 
@@ -29,18 +33,90 @@ To install via [pipx](https://pipx.pypa.io/stable/) run:
 pipx install stack-pr
 ```
 
+### Manual installation from source
+
 Manually, you can clone the repository and run the following command:
 
 ```bash
 pipx install .
 ```
 
-## Workflow
+## Usage
 
-`stack-pr` is a tool allowing you to work with stacked PRs: submit,
-view, and land them.
+`stack-pr` allows you to work with stacked PRs: submit, view, and land them.
 
-The `stack-pr` tool has four commands:
+### Basic Workflow
+
+The most common workflow is simple:
+
+1. Create a feature branch from `main`:
+```bash
+git checkout main
+git pull
+git checkout -b my-feature
+```
+
+2. Make your changes and create multiple commits (one commit per PR you want to create)
+```bash
+# Make some changes
+git commit -m "First change"
+# Make more changes
+git commit -m "Second change"
+# And so on...
+```
+
+3. Review what will be in your stack:
+```bash
+stack-pr view  # Always safe to run, helps catch issues early
+```
+
+4. Create/update the stack of PRs:
+```bash
+stack-pr submit
+```
+> **Note**: `export` is an alias for `submit`.
+
+5. To update any PR in the stack:
+- Amend the corresponding commit
+- Run `stack-pr view` to verify your changes
+- Run `stack-pr submit` again
+
+6. To rebase your stack on the latest main:
+```bash
+git checkout my-feature
+git pull origin main  # Get the latest main
+git rebase main       # Rebase your commits on top of main
+stack-pr submit       # Resubmit to update all PRs
+```
+
+7. When your PRs are ready to merge, you have two options:
+
+**Option A**: Using `stack-pr land`:
+```bash
+stack-pr land
+```
+This will:
+- Merge the bottom-most PR in your stack
+- Automatically rebase your remaining PRs
+- You can run `stack-pr land` again to merge the next PR once CI passes
+
+**Option B**: Using GitHub web interface:
+1. Merge the bottom-most PR through GitHub UI
+2. After the merge, on your local machine:
+   ```bash
+   git checkout my-feature
+   git pull origin main  # Get the merged changes
+   stack-pr submit       # Resubmit the stack to rebase remaining PRs
+   ```
+3. Repeat for each PR in the stack
+
+That's it!
+
+> **Pro-tip**: Run `stack-pr view` frequently - it's a safe command that helps you understand the current state of your stack and catch any potential issues early.
+
+### Commands
+
+`stack-pr` has four main commands:
 
 - `submit` (or `export`) - create a new stack of PRs from the given set of
   commits. One can think of this as “push my local changes to the corresponding
@@ -52,9 +128,8 @@ The `stack-pr` tool has four commands:
 - `abandon` - remove all stack metadata from the given set of commits. Apart
   from removing the metadata from the affected commits, this command deletes
   the corresponding local and remote branches and closes the PRs.
-- `land` - merge PRs from the stack corresponding to the given set of commits.
-  This command attempts to merge PRs from the stack one by one, and if
-  succeeded deletes the corresponding branches from local and remote repos.
+- `land` - merge the bottom-most PR in the current stack and rebase the rest of
+  the stack on the latest main.
 
 A usual workflow is the following:
 
@@ -70,7 +145,8 @@ You can also use `view` at any point to examine the current state, and
 `abandon` to drop the stack.
 
 Under the hood the tool creates and maintains branches named
-`$USERNAME/stack/$BRANCH_NUM` and embeds stack metadata into commit messages,
+`$USERNAME/stack/$BRANCH_NUM` (the name pattern can be customized via
+`--branch-name-template` option) and embeds stack metadata into commit messages,
 but you are not supposed to work with those branches or edit that metadata
 manually. I.e. instead of pushing to these branches you should use `submit`,
 instead of deleting them you should use `abandon` and instead of merging them
@@ -88,7 +164,7 @@ and `-T` respectively and accept the standard git notation: e.g. one can use
 The first step before creating a stack of PRs is to double-check the changes
 we’re going to post.
 
-By default the tool will look at commits in `main..HEAD` range and will create
+By default `stack-pr` will look at commits in `main..HEAD` range and will create
 a PR for every commit in that range.
 
 For instance, if we have
@@ -172,6 +248,11 @@ If we need to make changes to any of the PRs (e.g. to address the review
 feedback), we simply amend the desired changes to the appropriate git commits
 and run `submit` again. If needed, we can rearrange commits or add new ones.
 
+`submit` simply syncs the local changes with the corresponding PRs. This is why
+we use the same `stack-pr submit` command when we create a new stack, rebase our
+changes on the latest main, update any PR in the stack, add new commits to the
+stack, or rearrange commits in the stack.
+
 When we are ready to merge our changes, we use `land` command.
 
 ```python
@@ -204,7 +285,7 @@ VIEW
 
 This way we can land all the PRs from the stack one by one.
 
-## Specifying custom commit ranges
+### Specifying custom commit ranges
 
 The example above used the default commit range - `main..HEAD`, but you can
 specify a custom range too. Below are several commonly useful invocations of
@@ -238,6 +319,10 @@ stack-pr view -B HEAD~5 -H HEAD~2
 stack-pr land -B HEAD~5 -H HEAD~2
 ```
 
+Note that generally one doesn't need to specify the base and head branches
+explicitly - `stack-pr` will figure out the correct range based on the current
+branch and the remote `main` by default.
+
 ## Command Line Options Reference
 
 ### Common Arguments
@@ -259,7 +344,7 @@ These arguments can be used with any subcommand:
 
 #### submit (alias: export)
 
-Submit a stack of PRs
+Submit a stack of PRs.
 
 Options:
 
@@ -271,13 +356,13 @@ Options:
 
 #### land
 
-Land the current stack
+Land the bottom-most PR in the current stack.
 
 Takes no additional arguments beyond common ones.
 
 #### abandon
 
-Abandon the current stack
+Abandon the current stack.
 
 Takes no additional arguments beyond common ones.
 
