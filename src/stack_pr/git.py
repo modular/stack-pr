@@ -1,41 +1,39 @@
+from __future__ import annotations
+
 import re
-import shutil
 import string
 import subprocess
+from collections.abc import Sequence
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Optional, Sequence, Set
 
-from .shell_commands import get_command_output, run_shell_command
+from stack_pr.shell_commands import get_command_output, run_shell_command
 
 
 class GitError(Exception):
     pass
 
 
-username_override = None
+# Git constants
+GIT_NOT_A_REPO_ERROR = 128
+GIT_SHA_LENGTH = 40
 
 
-def override_username(username: str):
-    """Override username for testing purposes. Call with None to reset."""
-    global username_override
-    username_override = username
-
-
-def fetch_checkout_commit(
-    repo_dir: Path, ref: str, quiet: bool, remote: str = "origin"
-):
-    """Helper function to quickly fetch and checkout a new ref.
-
-    Args:
-        repo_dir: path to an existing git repository.
-        ref: a tag, brach, or (full) commit SHA.
-        remote: git remote to use. Default: "origin".
+@dataclass
+class GitConfig:
+    """
+    Configuration for git operations.
     """
 
-    run_shell_command(
-        ["git", "fetch", "--depth=1", remote, ref], cwd=repo_dir, quiet=quiet
-    )
-    run_shell_command(["git", "checkout", "FETCH_HEAD"], cwd=repo_dir, quiet=quiet)
+    username_override: str | None = None
+
+    def set_username_override(self, username: str | None) -> None:
+        """Override username for testing purposes. Call with None to reset."""
+        self.username_override = username
+
+
+# Create a singleton instance
+git_config = GitConfig()
 
 
 def is_full_git_sha(s: str) -> bool:
@@ -44,50 +42,14 @@ def is_full_git_sha(s: str) -> bool:
     The string needs to consist of 40 lowercase hex characters.
 
     """
-    if len(s) != 40:
+    if len(s) != GIT_SHA_LENGTH:
         return False
 
     digits = set(string.hexdigits.lower())
     return all(c in digits for c in s)
 
 
-def shallow_clone(
-    clone_dir: Path, url: str, ref: str, quiet: bool, remove_git: bool = False
-):
-    """Clone the given repo without any git history.
-
-    This makes the cloning faster for repos with large histories.
-
-    Args:
-        clone_dir: path to the new clone directory. It is created if it doesn't
-            already exist.
-        url: repository url to clone from.
-        ref: a tag, brach, or (full) commit SHA.
-        remove_git: remove the .git directory after cloning.
-
-    Raises:
-        FileExistsError: if clone_dir exists and is not an empty directory.
-    """
-
-    if clone_dir.exists():
-        if not clone_dir.is_dir() or any(clone_dir.iterdir()):
-            raise FileExistsError(
-                f"Clone directory already exists and is not empty: {clone_dir}"
-            )
-    else:
-        clone_dir.mkdir(parents=True)
-
-    run_shell_command(["git", "init"], cwd=clone_dir, quiet=quiet)
-    run_shell_command(
-        ["git", "remote", "add", "origin", url], cwd=clone_dir, quiet=quiet
-    )
-    fetch_checkout_commit(clone_dir, ref, quiet)
-
-    if remove_git:
-        shutil.rmtree(clone_dir / ".git")
-
-
-def branch_exists(branch: str, repo_dir: Optional[Path] = None) -> bool:
+def branch_exists(branch: str, repo_dir: Path | None = None) -> bool:
     """Returns whether a branch with the given name exists.
 
     Args:
@@ -114,7 +76,7 @@ def branch_exists(branch: str, repo_dir: Optional[Path] = None) -> bool:
     raise GitError("Not inside a valid git repository.")
 
 
-def get_current_branch_name(repo_dir: Optional[Path] = None) -> str:
+def get_current_branch_name(repo_dir: Path | None = None) -> str:
     """Returns the name of the branch currently checked out.
 
     Args:
@@ -134,14 +96,14 @@ def get_current_branch_name(repo_dir: Optional[Path] = None) -> str:
             ["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=repo_dir
         ).strip()
     except subprocess.CalledProcessError as e:
-        if e.returncode == 128:
+        if e.returncode == GIT_NOT_A_REPO_ERROR:
             raise GitError("Not inside a valid git repository.") from e
         raise
 
 
 def get_uncommitted_changes(
-    repo_dir: Optional[Path] = None,
-) -> Dict[str, Sequence[str]]:
+    repo_dir: Path | None = None,
+) -> dict[str, list[str]]:
     """Return a dictionary of uncommitted changes.
 
     Args:
@@ -159,11 +121,11 @@ def get_uncommitted_changes(
     try:
         out = get_command_output(["git", "status", "--porcelain"], cwd=repo_dir)
     except subprocess.CalledProcessError as e:
-        if e.returncode == 128:
+        if e.returncode == GIT_NOT_A_REPO_ERROR:
             raise GitError("Not inside a valid git repository.") from None
         raise
 
-    changes = {}
+    changes: dict[str, list[str]] = {}
     for line in out.splitlines():
         # First two chars are the status, changed path starts at 4th character.
         changes.setdefault(line[:2], []).append(line[3:])
@@ -171,7 +133,7 @@ def get_uncommitted_changes(
 
 
 # TODO: enforce this as a module dependency
-def check_gh_installed():
+def check_gh_installed() -> None:
     """Check if the gh tool is installed.
 
     Raises:
@@ -187,7 +149,6 @@ def check_gh_installed():
         ) from err
 
 
-# TODO: figure out how to test this
 def get_gh_username() -> str:
     """Return the current github username.
 
@@ -197,10 +158,10 @@ def get_gh_username() -> str:
         Current github username as a string.
 
     Raises:
-        GitError: if called outside a git repo, or.
+        GitError: if called outside a git repo.
     """
-    if username_override is not None:
-        return username_override
+    if git_config.username_override is not None:
+        return git_config.username_override
 
     user_query = get_command_output(
         [
@@ -223,7 +184,7 @@ def get_gh_username() -> str:
 
 
 def get_changed_files(
-    base: Optional[str] = None, repo_dir: Optional[Path] = None
+    base: str | None = None, repo_dir: Path | None = None
 ) -> Sequence[Path]:
     """Get the list of files changed between this commit and the base commit.
 
@@ -242,8 +203,8 @@ def get_changed_files(
 
 
 def get_changed_dirs(
-    base: Optional[str] = None, repo_dir: Optional[Path] = None
-) -> Set[Path]:
+    base: str | None = None, repo_dir: Path | None = None
+) -> set[Path]:
     """Get the list of top-level directories changed between this commit
        and the base commit.
 
