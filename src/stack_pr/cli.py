@@ -379,7 +379,7 @@ def error(msg: str) -> None:
     print(red("\nERROR: ") + msg)
 
 
-def log(msg: str, *, level: int = 0) -> None:
+def log(msg: str, *, level: int = 1) -> None:
     if level <= 1:
         print(msg)
     elif level == 1:
@@ -455,7 +455,7 @@ def set_base_branches(st: list[StackEntry], target: str) -> None:
 
 
 def verify(st: list[StackEntry], *, check_base: bool = False) -> None:
-    log(h("Verifying stack info"), level=1)
+    log(h("Verifying stack info"))
     for index, e in enumerate(st):
         if e.has_missing_info():
             error(ERROR_STACKINFO_MISSING.format(**locals()))
@@ -648,7 +648,7 @@ def set_head_branches(
 def init_local_branches(
     st: list[StackEntry], remote: str, *, verbose: bool, branch_name_template: str
 ) -> None:
-    log(h("Initializing local branches"), level=1)
+    log(h("Initializing local branches"))
     set_head_branches(
         st, remote, verbose=verbose, branch_name_template=branch_name_template
     )
@@ -660,7 +660,7 @@ def init_local_branches(
 
 
 def push_branches(st: list[StackEntry], remote: str, *, verbose: bool) -> None:
-    log(h("Updating remote branches"), level=1)
+    log(h("Updating remote branches"))
     cmd = ["git", "push", "-f", remote]
     cmd.extend([f"{e.head}:{e.head}" for e in st])
     run_shell_command(cmd, quiet=not verbose)
@@ -950,14 +950,13 @@ def command_submit(
     # Determine what commits belong to the stack
     st = get_stack(base=args.base, head=args.head, verbose=args.verbose)
     if not st:
-        log(h("Empty stack!"), level=1)
-        log(h(blue("SUCCESS!")), level=1)
+        log(h("Empty stack!"))
+        log(h(blue("SUCCESS!")))
         return
 
     if (draft_bitmask is not None) and (len(draft_bitmask) != len(st)):
         log(
-            h("Draft bitmask passed to 'submit' doesn't match number of PRs!"),
-            level=1,
+            h("Draft bitmask passed to 'submit' doesn't match number of PRs!")
         )
         return
 
@@ -970,7 +969,7 @@ def command_submit(
         branch_name_template=args.branch_name_template,
     )
     set_base_branches(st, args.target)
-    print_stack(st, links=args.hyperlinks, level=1)
+    print_stack(st, links=args.hyperlinks)
 
     # If the current branch contains commits from the stack, we will need to
     # rebase it in the end since the commits will be modified.
@@ -1156,7 +1155,7 @@ def command_land(args: CommonArgs) -> None:
     # already be there from the metadata that commits need to have by that
     # point.
     set_base_branches(st, args.target)
-    print_stack(st, links=args.hyperlinks, level=1)
+    print_stack(st, links=args.hyperlinks)
 
     # Verify that the stack is correct before trying to land it.
     verify(st, check_base=True)
@@ -1193,7 +1192,7 @@ def command_land(args: CommonArgs) -> None:
         quiet=not args.verbose,
     )
 
-    log(h(blue("SUCCESS!")), level=1)
+    log(h(blue("SUCCESS!")))
 
 
 # ===----------------------------------------------------------------------=== #
@@ -1246,11 +1245,11 @@ def strip_metadata(e: StackEntry, *, needs_rebase: bool, verbose: bool) -> str:
 # Entry point for 'abandon' command
 # ===----------------------------------------------------------------------=== #
 def command_abandon(args: CommonArgs) -> None:
-    log(h("ABANDON"), level=1)
+    log(h("ABANDON"))
     st = get_stack(base=args.base, head=args.head, verbose=args.verbose)
     if not st:
-        log(h("Empty stack!"), level=1)
-        log(h(blue("SUCCESS!")), level=1)
+        log(h("Empty stack!"))
+        log(h(blue("SUCCESS!")))
         return
     current_branch = get_current_branch_name()
 
@@ -1261,9 +1260,9 @@ def command_abandon(args: CommonArgs) -> None:
         branch_name_template=args.branch_name_template,
     )
     set_base_branches(st, args.target)
-    print_stack(st, links=args.hyperlinks, level=1)
+    print_stack(st, links=args.hyperlinks)
 
-    log(h("Stripping stack metadata from commit messages"), level=1)
+    log(h("Stripping stack metadata from commit messages"))
 
     last_hash = ""
     # The first commit doesn't need to be rebased since its will not change.
@@ -1274,7 +1273,7 @@ def command_abandon(args: CommonArgs) -> None:
         last_hash = strip_metadata(e, needs_rebase=need_rebase, verbose=args.verbose)
         need_rebase = True
 
-    log(h("Rebasing the current branch on top of updated top branch"), level=1)
+    log(h("Rebasing the current branch on top of updated top branch"))
     run_shell_command(
         ["git", "rebase", last_hash, current_branch], quiet=not args.verbose
     )
@@ -1286,7 +1285,7 @@ def command_abandon(args: CommonArgs) -> None:
         verbose=args.verbose,
         branch_name_template=args.branch_name_template,
     )
-    log(h(blue("SUCCESS!")), level=1)
+    log(h(blue("SUCCESS!")))
 
 
 # ===----------------------------------------------------------------------=== #
@@ -1304,16 +1303,13 @@ def print_tips_after_view(st: list[StackEntry], args: CommonArgs) -> None:
         top_commit = get_current_branch_name()
 
     if ready_to_land:
-        log(b("\nThis stack is ready to land!"), level=1)
+        log(b("\nThis stack is ready to land!"))
         log(UPDATE_STACK_TIP.format(**locals()))
         log(LAND_STACK_TIP.format(**locals()))
         return
 
     # Stack is not ready to land, suggest exporting it first
-    log(
-        b("\nThis stack can't be landed yet, you need to export it first."),
-        level=1,
-    )
+    log(b("\nThis stack can't be landed yet, you need to export it first."))
     log(EXPORT_STACK_TIP.format(**locals()))
 
 
@@ -1321,7 +1317,7 @@ def print_tips_after_view(st: list[StackEntry], args: CommonArgs) -> None:
 # Entry point for 'view' command
 # ===----------------------------------------------------------------------=== #
 def command_view(args: CommonArgs) -> None:
-    log(h("VIEW"), level=1)
+    log(h("VIEW"))
 
     if should_update_local_base(
         head=args.head,
@@ -1335,19 +1331,15 @@ def command_view(args: CommonArgs) -> None:
                 f"\nWarning: Local '{args.base}' is behind"
                 f" '{args.remote}/{args.target}'!"
             ),
-            level=1,
         )
         log(
             ("Consider updating your local branch by running the following commands:"),
-            level=1,
         )
         log(
             b(f"   git rebase {args.remote}/{args.target} {args.base}"),
-            level=1,
         )
         log(
             b(f"   git checkout {get_current_branch_name()}\n"),
-            level=1,
         )
 
     st = get_stack(base=args.base, head=args.head, verbose=args.verbose)
@@ -1359,9 +1351,9 @@ def command_view(args: CommonArgs) -> None:
         branch_name_template=args.branch_name_template,
     )
     set_base_branches(st, target=args.target)
-    print_stack(st, links=args.hyperlinks, level=1)
+    print_stack(st, links=args.hyperlinks)
     print_tips_after_view(st, args)
-    log(h(blue("SUCCESS!")), level=1)
+    log(h(blue("SUCCESS!")))
 
 
 # ===----------------------------------------------------------------------=== #
