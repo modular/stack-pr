@@ -955,9 +955,7 @@ def command_submit(
         return
 
     if (draft_bitmask is not None) and (len(draft_bitmask) != len(st)):
-        log(
-            h("Draft bitmask passed to 'submit' doesn't match number of PRs!")
-        )
+        log(h("Draft bitmask passed to 'submit' doesn't match number of PRs!"))
         return
 
     # Create local branches and initialize base and head fields in the stack
