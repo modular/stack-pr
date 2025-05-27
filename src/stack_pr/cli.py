@@ -636,7 +636,7 @@ def set_head_branches(
 ) -> None:
     """Set the head ref for each stack entry if it doesn't already have one."""
 
-    run_shell_command(["git", "fetch", "--prune", remote], quiet=not verbose)
+    run_shell_command(["git", "fetch", "--prune", remote, f"+refs/heads/*:refs/remotes/{remote}/*"], quiet=not verbose)
     available_name = get_available_branch_name(remote, branch_name_template)
     for e in filter(lambda e: not e.has_head(), st):
         e.head = available_name
