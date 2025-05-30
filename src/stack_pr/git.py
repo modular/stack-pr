@@ -83,7 +83,7 @@ def get_current_branch_name(repo_dir: Path | None = None) -> str:
         repo_dir: path to the repo. Defaults to the current working directory.
 
     Returns:
-        The name of the branch currently checked out, or "HEAD" if the repo is
+        The name of the branch currently checked out, or a hash if the repo is
         in a 'detached HEAD' state
 
     Raises:
@@ -92,9 +92,17 @@ def get_current_branch_name(repo_dir: Path | None = None) -> str:
     """
 
     try:
-        return get_command_output(
+        result = get_command_output(
             ["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=repo_dir
         ).strip()
+        if result == "HEAD":
+            # Detached HEAD state, return a hash so we can cleanup after ourselves properly, since
+            #    git checkout HEAD
+            # is a no-op.
+            result = get_command_output(
+                ["git", "rev-parse", "HEAD"], cwd=repo_dir
+            ).strip()
+        return result
     except subprocess.CalledProcessError as e:
         if e.returncode == GIT_NOT_A_REPO_ERROR:
             raise GitError("Not inside a valid git repository.") from e

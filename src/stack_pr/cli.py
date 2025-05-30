@@ -51,6 +51,7 @@ from __future__ import annotations
 
 import argparse
 import configparser
+import contextlib
 import json
 import logging
 import os
@@ -524,6 +525,24 @@ def draft_bitmask_type(value: str) -> list[bool]:
 
     # Convert to list of booleans
     return [bool(int(bit)) for bit in value]
+
+
+@contextlib.contextmanager
+def maybe_stash_interactive_rebase() -> Iterator[None]:
+    """
+    If the user is in the middle of an interactive rebase, we stash the
+    rebase state so that we can restore it later. This is useful when
+    the user is trying to submit only part of their commit history.
+    """
+    if os.path.exists(".git/rebase-merge"):
+        try:
+            assert not os.path.exists(".git/rebase-merge-stashed")
+            os.rename(".git/rebase-merge", ".git/rebase-merge-stashed")
+            yield
+        finally:
+            os.rename(".git/rebase-merge-stashed", ".git/rebase-merge")
+    else:
+        yield
 
 
 # ===----------------------------------------------------------------------=== #
@@ -1500,13 +1519,14 @@ def main() -> None:  # noqa: PLR0912
         common_args = deduce_base(common_args)
 
         if args.command in ["submit", "export"]:
-            command_submit(
-                common_args,
-                draft=args.draft,
-                reviewer=args.reviewer,
-                keep_body=args.keep_body,
-                draft_bitmask=args.draft_bitmask,
-            )
+            with maybe_stash_interactive_rebase():
+                command_submit(
+                    common_args,
+                    draft=args.draft,
+                    reviewer=args.reviewer,
+                    keep_body=args.keep_body,
+                    draft_bitmask=args.draft_bitmask,
+                )
         elif args.command == "land":
             command_land(common_args)
         elif args.command == "abandon":
