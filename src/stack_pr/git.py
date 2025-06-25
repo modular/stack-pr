@@ -224,9 +224,5 @@ def is_rebase_in_progress(repo_dir: Path | None = None) -> bool:
     Returns:
         True if a rebase is in progress, False otherwise.
     """
-    if repo_dir is None:
-        git_dir = Path(".git")
-    else:
-        git_dir = repo_dir / ".git"
-
+    git_dir = Path(".git") if repo_dir is None else repo_dir / ".git"
     return (git_dir / "rebase-merge").exists() or (git_dir / "rebase-apply").exists()
