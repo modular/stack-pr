@@ -1,4 +1,5 @@
 import sys
+import tempfile
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).parent.parent / "src"))
@@ -12,7 +13,7 @@ from stack_pr.cli import (
     get_gh_username,
     get_taken_branch_ids,
 )
-from stack_pr.git import git_config
+from stack_pr.git import git_config, is_rebase_in_progress
 
 
 @pytest.fixture(scope="module")
@@ -90,3 +91,35 @@ def test_generate_available_branch_name() -> None:
         "refs/remotes/origin/TestBot-stack-134",
     ]
     assert generate_available_branch_name(refs, template) == "TestBot-stack-135"
+
+
+def test_is_rebase_in_progress() -> None:
+    """Test the is_rebase_in_progress function with different git states."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        repo_dir = Path(temp_dir)
+        git_dir = repo_dir / ".git"
+        git_dir.mkdir()
+
+        # Test no rebase in progress
+        assert not is_rebase_in_progress(repo_dir)
+
+        # Test rebase-merge directory exists
+        rebase_merge_dir = git_dir / "rebase-merge"
+        rebase_merge_dir.mkdir()
+        assert is_rebase_in_progress(repo_dir)
+
+        # Clean up and test rebase-apply directory
+        rebase_merge_dir.rmdir()
+        assert not is_rebase_in_progress(repo_dir)
+
+        rebase_apply_dir = git_dir / "rebase-apply"
+        rebase_apply_dir.mkdir()
+        assert is_rebase_in_progress(repo_dir)
+
+        # Test both directories exist
+        rebase_merge_dir.mkdir()
+        assert is_rebase_in_progress(repo_dir)
+
+        # Test with None repo_dir (current directory)
+        # This should not raise an error even if .git doesn't exist in cwd
+        assert not is_rebase_in_progress(None)

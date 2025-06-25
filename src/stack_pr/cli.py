@@ -69,6 +69,7 @@ from stack_pr.git import (
     get_current_branch_name,
     get_gh_username,
     get_uncommitted_changes,
+    is_rebase_in_progress,
 )
 from stack_pr.shell_commands import (
     get_command_output,
@@ -169,6 +170,10 @@ PR info from github: {d}
 ERROR_REPO_DIRTY = """There are uncommitted changes.
 
 Please commit or stash them before working with stacks.
+"""
+ERROR_REBASE_IN_PROGRESS = """Cannot submit while in the middle of a rebase.
+
+Please complete or abort the current rebase first.
 """
 UPDATE_STACK_TIP = """
 If you'd like to push your local changes first, you can use the following command to update the stack:
@@ -933,6 +938,11 @@ def command_submit(
             a draft.
     """
     log(h("SUBMIT"), level=1)
+
+    if is_rebase_in_progress():
+        error(ERROR_REBASE_IN_PROGRESS)
+        sys.exit(1)
+
     current_branch = get_current_branch_name()
 
     if should_update_local_base(
