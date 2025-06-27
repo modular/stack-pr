@@ -45,7 +45,8 @@ def run_shell_command(
         raise ValueError("shell support has been removed")
     _ = subprocess.list2cmdline(cmd)
     if quiet:
-        kwargs.update({"stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL})
+        # Use pipes so errors result in usable error messages
+        kwargs.update({"stdout": subprocess.PIPE, "stderr": subprocess.PIPE})
     logger.debug("Running: %s", cmd)
     return subprocess.run(list(map(str, cmd)), **kwargs, check=check)
 
