@@ -213,3 +213,16 @@ def get_changed_dirs(
         files changed.
     """
     return {Path(file.parts[0]) for file in get_changed_files(base, repo_dir)}
+
+
+def is_rebase_in_progress(repo_dir: Path | None = None) -> bool:
+    """Check if a rebase operation is currently in progress.
+
+    Args:
+        repo_dir: path to the repo. Defaults to the current working directory.
+
+    Returns:
+        True if a rebase is in progress, False otherwise.
+    """
+    git_dir = Path(".git") if repo_dir is None else repo_dir / ".git"
+    return (git_dir / "rebase-merge").exists() or (git_dir / "rebase-apply").exists()
