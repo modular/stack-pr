@@ -781,6 +781,7 @@ def add_cross_links(st: list[StackEntry], *, keep_body: bool, verbose: bool) -> 
                 ["gh", "pr", "edit", e.pr, "-t", title, "-F", "-", "-B", e.base or ""],
                 input="\n".join(pr_body).encode(),
                 quiet=not verbose,
+                check=False,
             )
         else:
             error("Stack entry has no base branch")
