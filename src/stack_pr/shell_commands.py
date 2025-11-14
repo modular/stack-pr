@@ -5,18 +5,17 @@ import sys
 from collections.abc import Iterable
 from logging import getLogger
 from pathlib import Path
+from typing import Any, Union
 
-if sys.version_info >= (3, 13):
-    # Unpack moved to typing
-    from typing import Any, Union
-else:
-    from typing import Union
-
-    from typing_extensions import Any
+# For Python versions that don't have typing.Unpack yet (pre-3.13),
+# we import from typing_extensions instead
+if sys.version_info < (3, 13):
+    from typing_extensions import Unpack  # noqa: F401
 
 
 logger = getLogger(__name__)
 
+# Define type for shell commands, using Iterable for improved compatibility
 ShellCommand = Iterable[Union[str, Path]]
 
 

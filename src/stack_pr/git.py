@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 import string
 import subprocess
 from collections.abc import Sequence
@@ -132,20 +131,26 @@ def get_uncommitted_changes(
     return changes
 
 
-# TODO: enforce this as a module dependency
 def check_gh_installed() -> None:
-    """Check if the gh tool is installed.
+    """Check if the gh tool is installed and authenticated.
 
     Raises:
-        GitError if gh is not available.
+        GitError: If gh is not available or not authenticated.
     """
-
     try:
-        run_shell_command(["gh"], capture_output=True, quiet=False)
+        # Check if gh is installed
+        run_shell_command(["gh", "--version"], capture_output=True, quiet=False)
+
+        # Check if gh is authenticated
+        auth_status = get_command_output(["gh", "auth", "status"], check=False)
+        if "You are not logged into any GitHub hosts" in auth_status:
+            raise GitError(
+                "'gh' is not authenticated. Please run 'gh auth login' to authenticate."
+            )
     except subprocess.CalledProcessError as err:
         raise GitError(
-            "'gh' is not installed. Please visit https://cli.github.com/ for"
-            " installation instuctions."
+            "'gh' is not installed or not accessible. Please visit https://cli.github.com/ for"
+            " installation instructions."
         ) from err
 
 
@@ -175,12 +180,17 @@ def get_gh_username() -> str:
         ]
     )
 
-    # Extract the login name.
-    m = re.search(r"\"login\":\"(.*?)\"", user_query)
-    if not m:
-        raise GitError("Unable to find current github user name")
+    # Parse JSON response properly
+    import json
 
-    return m.group(1)
+    try:
+        response = json.loads(user_query)
+        login = response.get("data", {}).get("viewer", {}).get("login")
+        if not login:
+            raise GitError("Unable to find current github user name")
+        return str(login)  # Ensure we return a string
+    except json.JSONDecodeError as e:
+        raise GitError("Invalid response from GitHub API") from e
 
 
 def get_changed_files(
