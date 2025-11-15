@@ -175,6 +175,15 @@ ERROR_REBASE_IN_PROGRESS = """Cannot submit while in the middle of a rebase.
 
 Please complete or abort the current rebase first.
 """
+ERROR_CONFIG_INVALID_FORMAT = """Invalid config format.
+
+Usage: stack-pr config <section>.<key>=<value>
+
+Examples:
+  stack-pr config common.verbose=True
+  stack-pr config repo.target=main
+  stack-pr config repo.reviewer=user1,user2
+"""
 UPDATE_STACK_TIP = """
 If you'd like to push your local changes first, you can use the following command to update the stack:
   $ stack-pr export -B {top_commit}~{stack_size} -H {top_commit}"""
@@ -1365,6 +1374,43 @@ def command_view(args: CommonArgs) -> None:
 
 
 # ===----------------------------------------------------------------------=== #
+# CONFIG
+# ===----------------------------------------------------------------------=== #
+def command_config(config_file: str, setting: str) -> None:
+    """Set a configuration value in the config file.
+
+    Args:
+        config_file: Path to the config file
+        setting: Setting in the format "section.key=value"
+    """
+    if "=" not in setting:
+        error(ERROR_CONFIG_INVALID_FORMAT)
+        sys.exit(1)
+
+    key_path, value = setting.split("=", 1)
+
+    if "." not in key_path:
+        error(ERROR_CONFIG_INVALID_FORMAT)
+        sys.exit(1)
+
+    section, key = key_path.split(".", 1)
+
+    config = configparser.ConfigParser()
+    if Path(config_file).is_file():
+        config.read(config_file)
+
+    if not config.has_section(section):
+        config.add_section(section)
+
+    config.set(section, key, value)
+
+    with Path(config_file).open("w") as f:
+        config.write(f)
+
+    print(f"Set {section}.{key} = {value}")
+
+
+# ===----------------------------------------------------------------------=== #
 # Main entry point
 # ===----------------------------------------------------------------------=== #
 
@@ -1467,6 +1513,15 @@ def create_argparser(
         parents=[common_parser],
     )
 
+    parser_config = subparsers.add_parser(
+        "config",
+        help="Set a configuration value",
+    )
+    parser_config.add_argument(
+        "setting",
+        help="Configuration setting in format <section>.<key>=<value>",
+    )
+
     return parser
 
 
@@ -1487,6 +1542,11 @@ def main() -> None:  # noqa: PLR0912
     if not args.command:
         print(h(red("Invalid usage of the stack-pr command.")))
         parser.print_help()
+        return
+
+    # Handle config command early since it doesn't need git repo setup
+    if args.command == "config":
+        command_config(config_file, args.setting)
         return
 
     # Make sure "$ID" is present in the branch name template and append it if not

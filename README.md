@@ -116,12 +116,12 @@ That's it!
 
 ### Commands
 
-`stack-pr` has four main commands:
+`stack-pr` has five main commands:
 
 - `submit` (or `export`) - create a new stack of PRs from the given set of
-  commits. One can think of this as “push my local changes to the corresponding
+  commits. One can think of this as "push my local changes to the corresponding
   remote branches and update the corresponding PRs (or create new PRs if they
-  don’t exist yet)”.
+  don't exist yet)".
 - `view` - inspect the given set of commits and find the linked PRs. This
   command does not push any changes anywhere and does not change any commits.
   It can be used to examine what other commands did or will do.
@@ -130,6 +130,9 @@ That's it!
   the corresponding local and remote branches and closes the PRs.
 - `land` - merge the bottom-most PR in the current stack and rebase the rest of
   the stack on the latest main.
+- `config` - set configuration values in the config file. Similar to `git config`,
+  it takes a setting in the format `<section>.<key>=<value>` and updates the
+  config file (`.stack-pr.cfg` by default).
 
 A usual workflow is the following:
 
@@ -371,6 +374,32 @@ Takes no additional arguments beyond common ones.
 Inspect the current stack
 
 Takes no additional arguments beyond common ones.
+
+#### config
+
+Set a configuration value in the config file.
+
+Arguments:
+
+- `setting` (required): Configuration setting in format `<section>.<key>=<value>`
+
+Examples:
+
+```bash
+# Set verbose mode
+stack-pr config common.verbose=True
+
+# Set target branch
+stack-pr config repo.target=master
+
+# Set default reviewer(s)
+stack-pr config repo.reviewer=user1,user2
+
+# Set custom branch name template
+stack-pr config repo.branch_name_template=$USERNAME/stack
+```
+
+The config command modifies the config file (`.stack-pr.cfg` by default, or the path specified by `STACKPR_CONFIG` environment variable). If the file doesn't exist, it will be created. If a setting already exists, it will be updated.
 
 ### Config files
 
