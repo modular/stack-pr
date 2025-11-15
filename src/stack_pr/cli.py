@@ -1623,9 +1623,16 @@ def main() -> None:  # noqa: PLR0912
 
     current_branch = get_current_branch_name()
     get_branch_name_base(common_args.branch_name_template)
+    stashed_changes = False
     try:
         if args.command in ["submit", "export"] and args.stash:
-            run_shell_command(["git", "stash", "save"], quiet=not common_args.verbose)
+            result = run_shell_command(
+                ["git", "stash", "save"], quiet=not common_args.verbose
+            )
+            # Check if stash actually saved anything
+            # git stash outputs "No local changes to save" when there's nothing to stash
+            output = result.stdout.decode() if result.stdout else ""
+            stashed_changes = "No local changes to save" not in output
 
         if args.command != "view" and not is_repo_clean():
             error(ERROR_REPO_DIRTY)
@@ -1659,7 +1666,7 @@ def main() -> None:  # noqa: PLR0912
             print_cmd_failure_details(exc)
         raise
     finally:
-        if args.command in ["submit", "export"] and args.stash:
+        if args.command in ["submit", "export"] and args.stash and stashed_changes:
             run_shell_command(["git", "stash", "pop"], quiet=not common_args.verbose)
 
 
