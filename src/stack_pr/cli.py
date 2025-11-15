@@ -184,6 +184,20 @@ Examples:
   stack-pr config repo.target=main
   stack-pr config repo.reviewer=user1,user2
 """
+ERROR_TARGET_BRANCH_MASTER_INSTEAD_OF_MAIN = """Could not find target branch '{remote}/{target}'.
+
+It looks like your repository uses '{remote}/master' instead of '{remote}/main'.
+
+You can fix this by specifying the target branch:
+  stack-pr view --target=master
+
+Or set it permanently in your config file:
+  stack-pr config repo.target=master
+"""
+ERROR_TARGET_BRANCH_MISSING = """Could not find target branch '{remote}/{target}'.
+
+Make sure the branch exists or specify a different target with --target option.
+"""
 UPDATE_STACK_TIP = """
 If you'd like to push your local changes first, you can use the following command to update the stack:
   $ stack-pr export -B {top_commit}~{stack_size} -H {top_commit}"""
@@ -881,6 +895,55 @@ class CommonArgs:
         )
 
 
+def check_target_branch_exists(args: CommonArgs) -> None:
+    """Check that the target branch exists on the remote.
+
+    Args:
+        args: CommonArgs containing remote and target branch information
+
+    Raises:
+        SystemExit: If the target branch doesn't exist
+    """
+    # Check if target branch exists using git rev-parse --verify
+    # This is fast and doesn't require listing all branches
+    result = run_shell_command(
+        ["git", "rev-parse", "--verify", f"{args.remote}/{args.target}"],
+        quiet=True,
+        check=False,
+    )
+
+    if result.returncode == 0:
+        # Target branch exists, all good
+        return
+
+    # Target branch doesn't exist
+    # Check if this is the common case where repo uses 'master' instead of 'main'
+    if args.target == "main":
+        master_result = run_shell_command(
+            ["git", "rev-parse", "--verify", f"{args.remote}/master"],
+            quiet=True,
+            check=False,
+        )
+        if master_result.returncode == 0:
+            # Master exists, show helpful error
+            error(
+                ERROR_TARGET_BRANCH_MASTER_INSTEAD_OF_MAIN.format(
+                    remote=args.remote,
+                    target=args.target,
+                )
+            )
+            sys.exit(1)
+
+    # Generic error for other cases
+    error(
+        ERROR_TARGET_BRANCH_MISSING.format(
+            remote=args.remote,
+            target=args.target,
+        )
+    )
+    sys.exit(1)
+
+
 def deduce_base(args: CommonArgs) -> CommonArgs:
     """Deduce the base branch from the head and target branches.
 
@@ -1567,6 +1630,7 @@ def main() -> None:  # noqa: PLR0912
         if args.command != "view" and not is_repo_clean():
             error(ERROR_REPO_DIRTY)
             return
+        check_target_branch_exists(common_args)
         common_args = deduce_base(common_args)
 
         if args.command in ["submit", "export"]:
