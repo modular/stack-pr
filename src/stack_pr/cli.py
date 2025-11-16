@@ -198,6 +198,16 @@ ERROR_TARGET_BRANCH_MISSING = """Could not find target branch '{remote}/{target}
 
 Make sure the branch exists or specify a different target with --target option.
 """
+ERROR_LAND_DISABLED = """The 'land' command is disabled.
+
+Please merge your PRs through the GitHub web interface instead.
+
+To override this setting for a single command:
+  stack-pr land --land-style=bottom-only
+
+Or to re-enable it permanently:
+  stack-pr config land.style=bottom-only
+"""
 UPDATE_STACK_TIP = """
 If you'd like to push your local changes first, you can use the following command to update the stack:
   $ stack-pr export -B {top_commit}~{stack_size} -H {top_commit}"""
@@ -881,6 +891,7 @@ class CommonArgs:
     hyperlinks: bool
     verbose: bool
     branch_name_template: str
+    land_style: str
 
     @classmethod
     def from_args(cls, args: argparse.Namespace) -> CommonArgs:
@@ -892,6 +903,7 @@ class CommonArgs:
             args.hyperlinks,
             args.verbose,
             args.branch_name_template,
+            args.land_style,
         )
 
 
@@ -972,6 +984,7 @@ def deduce_base(args: CommonArgs) -> CommonArgs:
         args.hyperlinks,
         args.verbose,
         args.branch_name_template,
+        args.land_style,
     )
 
 
@@ -1209,6 +1222,11 @@ def delete_remote_branches(
 # ===----------------------------------------------------------------------=== #
 def command_land(args: CommonArgs) -> None:
     log(h("LAND"), level=1)
+
+    # Check if land command is disabled
+    if args.land_style == "disable":
+        error(ERROR_LAND_DISABLED)
+        sys.exit(1)
 
     current_branch = get_current_branch_name()
 
@@ -1517,6 +1535,12 @@ def create_argparser(
         "--branch-name-template",
         default=config.get("repo", "branch_name_template", fallback="$USERNAME/stack"),
         help="A template for names of the branches stack-pr would use.",
+    )
+    common_parser.add_argument(
+        "--land-style",
+        default=config.get("land", "style", fallback="bottom-only"),
+        choices=["disable", "bottom-only"],
+        help="Style of landing PRs: 'bottom-only' lands one PR per invocation, 'disable' disables the land command.",
     )
 
     parser_submit = subparsers.add_parser(
