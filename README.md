@@ -361,7 +361,11 @@ Options:
 
 Land the bottom-most PR in the current stack.
 
-Takes no additional arguments beyond common ones.
+Options:
+
+- `--land-style`: Style of landing PRs. Choices: `disable`, `bottom-only` (default: `bottom-only` or from config)
+  - `bottom-only`: Land one PR at a time (bottom-most in the stack)
+  - `disable`: Disable the land command entirely, requiring PRs to be merged through GitHub web interface
 
 #### abandon
 
@@ -397,6 +401,12 @@ stack-pr config repo.reviewer=user1,user2
 
 # Set custom branch name template
 stack-pr config repo.branch_name_template=$USERNAME/stack
+
+# Disable the land command (require GitHub web interface for merging)
+stack-pr config land.style=disable
+
+# Use "bottom-only" landing style for stacks
+stack-pr config land.style=bottom-only
 ```
 
 The config command modifies the config file (`.stack-pr.cfg` by default, or the path specified by `STACKPR_CONFIG` environment variable). If the file doesn't exist, it will be created. If a setting already exists, it will be updated.
@@ -421,4 +431,6 @@ remote=origin
 target=main
 reviewer=GithubHandle1,GithubHandle2
 branch_name_template=$USERNAME/$BRANCH
+[land]
+style=bottom-only
 ```
