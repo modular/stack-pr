@@ -409,7 +409,7 @@ stack-pr config land.style=disable
 stack-pr config land.style=bottom-only
 ```
 
-The config command modifies the config file (`.stack-pr.cfg` by default, or the path specified by `STACKPR_CONFIG` environment variable). If the file doesn't exist, it will be created. If a setting already exists, it will be updated.
+The config command modifies the config file (the `.stack-pr.cfg` file in the repo root by default, or the path specified by `STACKPR_CONFIG` environment variable). If the file doesn't exist, it will be created. If a setting already exists, it will be updated.
 
 ### Config files
 
