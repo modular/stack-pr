@@ -68,6 +68,7 @@ from stack_pr.git import (
     check_gh_installed,
     get_current_branch_name,
     get_gh_username,
+    get_repo_root,
     get_uncommitted_changes,
     is_rebase_in_progress,
 )
@@ -1612,7 +1613,7 @@ def create_argparser(
     return parser
 
 
-def load_config(config_file: str) -> configparser.ConfigParser:
+def load_config(config_file: str | Path) -> configparser.ConfigParser:
     config = configparser.ConfigParser()
     if Path(config_file).is_file():
         config.read(config_file)
@@ -1620,7 +1621,8 @@ def load_config(config_file: str) -> configparser.ConfigParser:
 
 
 def main() -> None:  # noqa: PLR0912
-    config_file = os.getenv("STACKPR_CONFIG", ".stack-pr.cfg")
+    repo_config_file = get_repo_root() / ".stack-pr.cfg"
+    config_file = os.getenv("STACKPR_CONFIG", repo_config_file)
     config = load_config(config_file)
 
     parser = create_argparser(config)

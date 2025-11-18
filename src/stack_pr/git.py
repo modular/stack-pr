@@ -101,6 +101,27 @@ def get_current_branch_name(repo_dir: Path | None = None) -> str:
         raise
 
 
+def get_repo_root(repo_dir: Path | None = None) -> Path:
+    """Returns the root of the git repository.
+
+    Args:
+        repo_dir: path to the repo. Defaults to the current working directory.
+
+    Returns:
+        The root of the given git repository.
+    """
+    try:
+        return Path(
+            get_command_output(
+                ["git", "rev-parse", "--show-toplevel"], cwd=repo_dir
+            ).strip()
+        )
+    except subprocess.CalledProcessError as e:
+        if e.returncode == GIT_NOT_A_REPO_ERROR:
+            raise GitError("Not inside a valid git repository.") from e
+        raise
+
+
 def get_uncommitted_changes(
     repo_dir: Path | None = None,
 ) -> dict[str, list[str]]:
