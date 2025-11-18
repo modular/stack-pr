@@ -361,11 +361,7 @@ Options:
 
 Land the bottom-most PR in the current stack.
 
-Options:
-
-- `--land-style`: Style of landing PRs. Choices: `disable`, `bottom-only` (default: `bottom-only` or from config)
-  - `bottom-only`: Land one PR at a time (bottom-most in the stack)
-  - `disable`: Disable the land command entirely, requiring PRs to be merged through GitHub web interface
+If the `land.style` config option has the `disable` value, this command is not available.
 
 #### abandon
 
