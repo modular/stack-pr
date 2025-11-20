@@ -753,6 +753,10 @@ def create_pr(e: StackEntry, *, is_draft: bool, reviewer: str = "") -> None:
 
 
 def generate_toc(st: list[StackEntry], current: str) -> str:
+    # Don't generate TOC for single PR
+    if len(st) == 1:
+        return ""
+
     def toc_entry(se: StackEntry) -> str:
         pr_id = last(se.pr)
         arrow = "__->__" if pr_id == current else ""
@@ -782,23 +786,22 @@ def add_cross_links(st: list[StackEntry], *, keep_body: bool, verbose: bool) -> 
 
         # Strip stack-info from the body, nothing interesting there.
         body = RE_STACK_INFO_LINE.sub("", body)
-        pr_body = [
-            f"{pr_toc}",
-            f"{CROSS_LINKS_DELIMETER}\n",
-        ]
+
+        # Build PR body components
+        header = []
+        body_content = body
+
+        if pr_toc:
+            # Multi-PR stack: add TOC header and format body with title
+            header = [pr_toc, f"{CROSS_LINKS_DELIMETER}\n"]
+            body_content = f"### {title}\n\n{body}"
 
         if keep_body:
             # Keep current body of the PR after the cross links component
             current_pr_body = get_current_pr_body(e)
-            pr_body.append(current_pr_body.split(CROSS_LINKS_DELIMETER, 1)[-1].lstrip())
-        else:
-            pr_body.extend(
-                [
-                    f"### {title}",
-                    "",
-                    f"{body}",
-                ]
-            )
+            body_content = current_pr_body.split(CROSS_LINKS_DELIMETER, 1)[-1].lstrip()
+
+        pr_body = [*header, body_content]
 
         if e.has_base():
             run_shell_command(
