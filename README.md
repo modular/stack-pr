@@ -389,6 +389,9 @@ Examples:
 # Set verbose mode
 stack-pr config common.verbose=True
 
+# Disable usage tips (hide verbose output after commands)
+stack-pr config common.show_tips=False
+
 # Set target branch
 stack-pr config repo.target=master
 
@@ -422,6 +425,7 @@ hyperlinks=True
 draft=False
 keep_body=False
 stash=False
+show_tips=True
 [repo]
 remote=origin
 target=main
