@@ -79,6 +79,21 @@ from stack_pr.shell_commands import (
 
 logger = getLogger(__name__)
 
+# Global verbose flag
+_verbose = False
+
+
+def set_verbose(verbose: bool) -> None:  # noqa: FBT001
+    """Set the global verbose flag."""
+    global _verbose  # noqa: PLW0603
+    _verbose = verbose
+
+
+def is_verbose() -> bool:
+    """Check if verbose mode is enabled."""
+    return _verbose
+
+
 # A bunch of regexps for parsing commit messages and PR descriptions
 RE_RAW_COMMIT_ID = re.compile(r"^(?P<commit>[a-f0-9]+)$", re.MULTILINE)
 RE_RAW_AUTHOR = re.compile(
@@ -409,12 +424,14 @@ def error(msg: str) -> None:
 
 
 def log(msg: str, *, level: int = 1) -> None:
-    if level <= 1:
+    """Log a message based on verbosity level.
+
+    Args:
+        msg: Message to log
+        level: 1 for essential messages (always shown), 2+ for verbose-only messages
+    """
+    if level == 1 or (level >= 2 and is_verbose()):  # noqa: PLR2004
         print(msg)
-    elif level == 1:
-        logger.info(msg)
-    elif level >= 2:  # noqa: PLR2004
-        logger.debug(msg)
 
 
 # ===----------------------------------------------------------------------=== #
@@ -484,7 +501,7 @@ def set_base_branches(st: list[StackEntry], target: str) -> None:
 
 
 def verify(st: list[StackEntry], *, check_base: bool = False) -> None:
-    log(h("Verifying stack info"))
+    log(h("Verifying stack info"), level=2)
     for index, e in enumerate(st):
         if e.has_missing_info():
             error(ERROR_STACKINFO_MISSING.format(**locals()))
@@ -677,7 +694,7 @@ def set_head_branches(
 def init_local_branches(
     st: list[StackEntry], remote: str, *, verbose: bool, branch_name_template: str
 ) -> None:
-    log(h("Initializing local branches"))
+    log(h("Initializing local branches"), level=2)
     set_head_branches(
         st, remote, verbose=verbose, branch_name_template=branch_name_template
     )
@@ -689,7 +706,7 @@ def init_local_branches(
 
 
 def push_branches(st: list[StackEntry], remote: str, *, verbose: bool) -> None:
-    log(h("Updating remote branches"))
+    log(h("Updating remote branches"), level=2)
     cmd = ["git", "push", "-f", remote]
     cmd.extend([f"{e.head}:{e.head}" for e in st])
     run_shell_command(cmd, quiet=not verbose)
@@ -840,7 +857,7 @@ def add_cross_links(st: list[StackEntry], *, keep_body: bool, verbose: bool) -> 
 def reset_remote_base_branches(
     st: list[StackEntry], target: str, *, verbose: bool
 ) -> None:
-    log(h("Resetting remote base branches"), level=1)
+    log(h("Resetting remote base branches"), level=2)
 
     for e in filter(lambda e: e.has_pr(), st):
         run_shell_command(["gh", "pr", "edit", e.pr, "-B", target], quiet=not verbose)
@@ -1080,7 +1097,7 @@ def command_submit(
     verify(st)
 
     # Embed stack-info into commit messages
-    log(h("Updating commit messages with stack metadata"), level=1)
+    log(h("Updating commit messages with stack metadata"), level=2)
     needs_rebase = False
     for e in st:
         try:
@@ -1097,7 +1114,7 @@ def command_submit(
     add_cross_links(st, keep_body=keep_body, verbose=args.verbose)
 
     if need_to_rebase_current:
-        log(h(f"Rebasing the original branch '{current_branch}'"), level=1)
+        log(h(f"Rebasing the original branch '{current_branch}'"), level=2)
         run_shell_command(
             [
                 "git",
@@ -1109,7 +1126,7 @@ def command_submit(
             quiet=not args.verbose,
         )
     else:
-        log(h(f"Checking out the original branch '{current_branch}'"), level=1)
+        log(h(f"Checking out the original branch '{current_branch}'"), level=2)
         run_shell_command(["git", "checkout", current_branch], quiet=not args.verbose)
 
     delete_local_branches(st, verbose=args.verbose)
@@ -1180,7 +1197,7 @@ def land_pr(e: StackEntry, remote: str, target: str, *, verbose: bool) -> None:
 
 
 def delete_local_branches(st: list[StackEntry], *, verbose: bool) -> None:
-    log(h("Deleting local branches"), level=1)
+    log(h("Deleting local branches"), level=2)
     # Delete local branches
     cmd = ["git", "branch", "-D"]
     cmd.extend([e.head for e in st if e.head])
@@ -1617,6 +1634,10 @@ def main() -> None:  # noqa: PLR0912
 
     parser = create_argparser(config)
     args = parser.parse_args()
+
+    # Set global verbose flag (if present - config command doesn't have it)
+    if hasattr(args, "verbose"):
+        set_verbose(args.verbose)
 
     if not args.command:
         print(h(red("Invalid usage of the stack-pr command.")))
