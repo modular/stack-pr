@@ -885,6 +885,7 @@ class CommonArgs:
     hyperlinks: bool
     verbose: bool
     branch_name_template: str
+    show_tips: bool
 
     @classmethod
     def from_args(cls, args: argparse.Namespace) -> CommonArgs:
@@ -896,6 +897,7 @@ class CommonArgs:
             args.hyperlinks,
             args.verbose,
             args.branch_name_template,
+            args.show_tips,
         )
 
 
@@ -976,12 +978,13 @@ def deduce_base(args: CommonArgs) -> CommonArgs:
         args.hyperlinks,
         args.verbose,
         args.branch_name_template,
+        args.show_tips,
     )
 
 
 def print_tips_after_export(st: list[StackEntry], args: CommonArgs) -> None:
     stack_size = len(st)
-    if stack_size == 0:
+    if stack_size == 0 or not args.show_tips:
         return
 
     top_commit = args.head
@@ -1377,7 +1380,7 @@ def command_abandon(args: CommonArgs) -> None:
 # ===----------------------------------------------------------------------=== #
 def print_tips_after_view(st: list[StackEntry], args: CommonArgs) -> None:
     stack_size = len(st)
-    if stack_size == 0:
+    if stack_size == 0 or not args.show_tips:
         return
 
     ready_to_land = all(not e.has_missing_info() for e in st)
@@ -1521,6 +1524,12 @@ def create_argparser(
         "--branch-name-template",
         default=config.get("repo", "branch_name_template", fallback="$USERNAME/stack"),
         help="A template for names of the branches stack-pr would use.",
+    )
+    common_parser.add_argument(
+        "--show-tips",
+        action=argparse.BooleanOptionalAction,
+        default=config.getboolean("common", "show_tips", fallback=True),
+        help="Show or hide usage tips after commands.",
     )
 
     parser_submit = subparsers.add_parser(
