@@ -558,7 +558,9 @@ def draft_bitmask_type(value: str) -> list[bool]:
 # ===----------------------------------------------------------------------=== #
 # SUBMIT
 # ===----------------------------------------------------------------------=== #
-def add_or_update_metadata(e: StackEntry, *, needs_rebase: bool, verbose: bool) -> bool:
+def add_or_update_metadata(
+    e: StackEntry, *, needs_rebase: bool, verbose: bool, skip_ci: bool = False
+) -> bool:
     if needs_rebase:
         if not e.has_base() or not e.has_head():
             error("Stack entry has no base or head branch")
@@ -589,12 +591,33 @@ def add_or_update_metadata(e: StackEntry, *, needs_rebase: bool, verbose: bool) 
 
     # Add the stack info metadata to the commit message
     commit_msg += f"\n\nstack-info: PR: {e.pr}, branch: {e.head}"
+    if skip_ci:
+        commit_msg += "\n\n[skip ci]"
     run_shell_command(
         ["git", "commit", "--amend", "-F", "-"],
         input=commit_msg.encode(),
         quiet=not verbose,
     )
     return True
+
+
+def remove_skip_ci_from_commits(st: list[StackEntry], *, verbose: bool) -> None:
+    """Remove [skip ci] from all commit messages in the stack."""
+    for e in st:
+        run_shell_command(["git", "checkout", e.head], quiet=not verbose)
+        commit_msg = e.commit.commit_msg()
+        if "[skip ci]" in commit_msg:
+            # Remove [skip ci] with various spacing patterns
+            commit_msg = (
+                commit_msg.replace("\n\n[skip ci]", "")
+                .replace("\n[skip ci]", "")
+                .replace("[skip ci]", "")
+            )
+            run_shell_command(
+                ["git", "commit", "--amend", "-F", "-"],
+                input=commit_msg.encode(),
+                quiet=not verbose,
+            )
 
 
 def fix_branch_name_template(branch_name_template: str) -> str:
@@ -1076,18 +1099,23 @@ def command_submit(
     # Verify consistency in everything we have so far
     verify(st)
 
-    # Embed stack-info into commit messages
+    # Embed stack-info into commit messages with [skip ci] for first push
     log(h("Updating commit messages with stack metadata"), level=1)
     needs_rebase = False
     for e in st:
         try:
             needs_rebase = add_or_update_metadata(
-                e, needs_rebase=needs_rebase, verbose=args.verbose
+                e, needs_rebase=needs_rebase, verbose=args.verbose, skip_ci=True
             )
         except Exception:
             error(ERROR_CANT_UPDATE_META.format(**locals()))
             raise
 
+    push_branches(st, remote=args.remote, verbose=args.verbose)
+
+    # Remove [skip ci] from commit messages for final push
+    log(h("Removing [skip ci] from commit messages"), level=1)
+    remove_skip_ci_from_commits(st, verbose=args.verbose)
     push_branches(st, remote=args.remote, verbose=args.verbose)
 
     log(h("Adding cross-links to PRs"), level=1)
