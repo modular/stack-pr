@@ -903,9 +903,10 @@ class CommonArgs:
     verbose: bool
     branch_name_template: str
     show_tips: bool
+    land_disabled: bool
 
     @classmethod
-    def from_args(cls, args: argparse.Namespace) -> CommonArgs:
+    def from_args(cls, args: argparse.Namespace, *, land_disabled: bool) -> CommonArgs:
         return cls(
             args.base,
             args.head,
@@ -915,6 +916,7 @@ class CommonArgs:
             args.verbose,
             args.branch_name_template,
             args.show_tips,
+            land_disabled,
         )
 
 
@@ -996,6 +998,7 @@ def deduce_base(args: CommonArgs) -> CommonArgs:
         args.verbose,
         args.branch_name_template,
         args.show_tips,
+        args.land_disabled,
     )
 
 
@@ -1009,7 +1012,8 @@ def print_tips_after_export(st: list[StackEntry], args: CommonArgs) -> None:
         top_commit = get_current_branch_name()
 
     log(b("\nOnce the stack is reviewed, it is ready to land!"), level=1)
-    log(LAND_STACK_TIP.format(**locals()))
+    if not args.land_disabled:
+        log(LAND_STACK_TIP.format(**locals()))
 
 
 # ===----------------------------------------------------------------------=== #
@@ -1409,7 +1413,8 @@ def print_tips_after_view(st: list[StackEntry], args: CommonArgs) -> None:
     if ready_to_land:
         log(b("\nThis stack is ready to land!"))
         log(UPDATE_STACK_TIP.format(**locals()))
-        log(LAND_STACK_TIP.format(**locals()))
+        if not args.land_disabled:
+            log(LAND_STACK_TIP.format(**locals()))
         return
 
     # Stack is not ready to land, suggest exporting it first
@@ -1651,7 +1656,12 @@ def main() -> None:  # noqa: PLR0912
 
     # Make sure "$ID" is present in the branch name template and append it if not
     args.branch_name_template = fix_branch_name_template(args.branch_name_template)
-    common_args = CommonArgs.from_args(args)
+    common_args = CommonArgs.from_args(
+        args,
+        land_disabled=(
+            config.get("land", "style", fallback="bottom-only") == "disable"
+        ),
+    )
 
     if common_args.verbose:
         logger.setLevel(logging.DEBUG)
