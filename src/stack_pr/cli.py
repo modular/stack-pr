@@ -1000,9 +1000,28 @@ def deduce_base(args: CommonArgs) -> CommonArgs:
    """
     if args.base:
         return args
-    deduced_base = get_command_output(
-        ["git", "merge-base", args.head, f"{args.remote}/{args.target}"]
-    )
+
+    # Check if the remote branch exists
+    remote_branch = f"{args.remote}/{args.target}"
+    try:
+        run_shell_command(["git", "rev-parse", "--verify", remote_branch], quiet=True)
+    except SubprocessError:
+        error(
+            f"Remote branch '{remote_branch}' does not exist. Please ensure the branch is available."
+        )
+        sys.exit(1)
+
+    # Attempt to find the merge base
+    try:
+        deduced_base = get_command_output(
+            ["git", "merge-base", args.head, remote_branch]
+        )
+    except SubprocessError:
+        error(
+            f"Failed to find a merge base between '{args.head}' and '{remote_branch}'."
+        )
+        sys.exit(1)
+
     return CommonArgs(
         deduced_base,
         args.head,
