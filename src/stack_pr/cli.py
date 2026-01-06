@@ -1091,7 +1091,6 @@ def command_submit(
         branch_name_template=args.branch_name_template,
     )
     set_base_branches(st, args.target)
-    print_stack(st, links=args.hyperlinks)
 
     # If the current branch contains commits from the stack, we will need to
     # rebase it in the end since the commits will be modified.
@@ -1113,6 +1112,10 @@ def command_submit(
 
     # Verify consistency in everything we have so far
     verify(st)
+
+    # Print stack now that PRs have been created
+    print_stack(st, links=args.hyperlinks)
+    assert False
 
     # Embed stack-info into commit messages
     log(h("Updating commit messages with stack metadata"), level=2)
