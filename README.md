@@ -33,6 +33,14 @@ To install via [pipx](https://pipx.pypa.io/stable/) run:
 pipx install stack-pr
 ```
 
+### Installation with `uv`
+
+To install via [uv](https://docs.astral.sh/uv/) run:
+
+```bash
+uv tool install stack-pr
+```
+
 ### Manual installation from source
 
 Manually, you can clone the repository and run the following command:
