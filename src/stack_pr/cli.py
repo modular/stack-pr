@@ -1220,6 +1220,12 @@ def land_pr(e: StackEntry, remote: str, target: str, *, verbose: bool) -> None:
         input=pr_body.encode(),
         quiet=not verbose,
     )
+    # Fetch after the merge so that remote refs (e.g. origin/main) reflect the
+    # newly landed commit before any subsequent rebase operations.  Without
+    # this, single-PR stacks leave origin/{target} stale: land_pr fetches
+    # *before* the merge, so the squash commit is invisible to the final
+    # rebase of the current branch in command_land.
+    run_shell_command(["git", "fetch", "--prune", remote], quiet=not verbose)
 
 
 def delete_local_branches(st: list[StackEntry], *, verbose: bool) -> None:
