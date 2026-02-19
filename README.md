@@ -342,6 +342,7 @@ These arguments can be used with any subcommand:
    - `$USERNAME`: The username of the current user
    - `$BRANCH`: The current branch name
    - `$ID`: The location for the ID of the branch. The ID is determined by the order of creation of the branches. If `$ID` is not found in the template, the template will be appended with `/$ID`.
+- `--max-branches-per-push`: Maximum number of branches to push to GitHub in one push operation (default: 5)
 
 ### Subcommands
 
@@ -401,6 +402,9 @@ stack-pr config repo.reviewer=user1,user2
 # Set custom branch name template
 stack-pr config repo.branch_name_template=$USERNAME/stack
 
+# Set [maximum number of branches to push to Github in one operation](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/managing-repository-settings/managing-the-push-policy-for-your-repository)
+stack-pr config repo.max_branches_per_push=5
+
 # Disable the land command (require GitHub web interface for merging)
 stack-pr config land.style=disable
 
@@ -431,6 +435,7 @@ remote=origin
 target=main
 reviewer=GithubHandle1,GithubHandle2
 branch_name_template=$USERNAME/$BRANCH
+max_branches_per_push=5
 [land]
 style=bottom-only
 ```
