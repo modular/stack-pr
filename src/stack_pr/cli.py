@@ -705,11 +705,12 @@ def init_local_branches(
         )
 
 
-def push_branches(st: list[StackEntry], remote: str, *, verbose: bool) -> None:
-    log(h("Updating remote branches"), level=2)
-    cmd = ["git", "push", "-f", remote]
-    cmd.extend([f"{e.head}:{e.head}" for e in st])
-    run_shell_command(cmd, quiet=not verbose)
+def push_branches(st: list[StackEntry], remote: str, *, verbose: bool, max_branches_per_push: int) -> None:
+    for i in range(0, len(st), max_branches_per_push):
+        log(h("Updating remote branches"), level=2)
+        cmd = ["git", "push", "-f", remote]
+        cmd.extend([f"{e.head}:{e.head}" for e in st[i:i+max_branches_per_push]])
+        run_shell_command(cmd, quiet=not verbose)
 
 
 def print_cmd_failure_details(exc: SubprocessError) -> None:
@@ -918,6 +919,7 @@ class CommonArgs:
     branch_name_template: str
     show_tips: bool
     land_disabled: bool
+    max_branches_per_push: int
 
     @classmethod
     def from_args(cls, args: argparse.Namespace, *, land_disabled: bool) -> CommonArgs:
@@ -931,6 +933,7 @@ class CommonArgs:
             args.branch_name_template,
             args.show_tips,
             land_disabled,
+            args.max_branches_per_push,
         )
 
 
@@ -1102,7 +1105,7 @@ def command_submit(
     reset_remote_base_branches(st, target=args.target, verbose=args.verbose)
 
     # Push local branches to remote
-    push_branches(st, remote=args.remote, verbose=args.verbose)
+    push_branches(st, remote=args.remote, verbose=args.verbose, max_branches_per_push=args.max_branches_per_push)
 
     # Now we have all the branches, so we can create the corresponding PRs
     log(h("Submitting PRs"), level=1)
@@ -1128,7 +1131,7 @@ def command_submit(
             error(ERROR_CANT_UPDATE_META.format(**locals()))
             raise
 
-    push_branches(st, remote=args.remote, verbose=args.verbose)
+    push_branches(st, remote=args.remote, verbose=args.verbose, max_branches_per_push=args.max_branches_per_push)
 
     log(h("Adding cross-links to PRs"), level=1)
     add_cross_links(st, keep_body=keep_body, verbose=args.verbose)
@@ -1574,6 +1577,12 @@ def create_argparser(
         action=argparse.BooleanOptionalAction,
         default=config.getboolean("common", "show_tips", fallback=True),
         help="Show or hide usage tips after commands.",
+    )
+    common_parser.add_argument(
+        "--max-branches-per-push",
+        type=int,
+        default=config.getint("repo", "max_branches_per_push", fallback=5),
+        help="Maximum number of branches to push to GitHub in one push operation (default: 5).",
     )
 
     parser_submit = subparsers.add_parser(
