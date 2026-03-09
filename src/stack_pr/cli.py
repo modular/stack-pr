@@ -64,6 +64,7 @@ from re import Pattern
 from subprocess import SubprocessError
 
 from stack_pr.git import (
+    branch_checked_out_in_other_worktree,
     branch_exists,
     check_gh_installed,
     get_current_branch_name,
@@ -1261,6 +1262,7 @@ def command_land(args: CommonArgs) -> None:
     log(h("LAND"), level=1)
 
     current_branch = get_current_branch_name()
+    stack_base = args.base
 
     if should_update_local_base(
         head=args.head,
@@ -1269,13 +1271,32 @@ def command_land(args: CommonArgs) -> None:
         target=args.target,
         verbose=args.verbose,
     ):
-        update_local_base(
-            base=args.base, remote=args.remote, target=args.target, verbose=args.verbose
+        base_worktree = (
+            branch_checked_out_in_other_worktree(args.base)
+            if branch_exists(args.base)
+            else None
         )
-        run_shell_command(["git", "checkout", current_branch], quiet=not args.verbose)
+        if base_worktree is None:
+            update_local_base(
+                base=args.base,
+                remote=args.remote,
+                target=args.target,
+                verbose=args.verbose,
+            )
+            run_shell_command(["git", "checkout", current_branch], quiet=not args.verbose)
+        else:
+            stack_base = f"{args.remote}/{args.target}"
+            log(
+                h(
+                    f"Skipping update of local branch {args.base}: checked out in"
+                    f" worktree at {base_worktree}. Using {stack_base} as stack"
+                    " base."
+                ),
+                level=1,
+            )
 
     # Determine what commits belong to the stack
-    st = get_stack(base=args.base, head=args.head, verbose=args.verbose)
+    st = get_stack(base=stack_base, head=args.head, verbose=args.verbose)
     if not st:
         log(h("Empty stack!"), level=1)
         log(h(blue("SUCCESS!")), level=1)
@@ -1313,10 +1334,20 @@ def command_land(args: CommonArgs) -> None:
 
     # If local branch {target} exists, rebase it on the remote/target
     if branch_exists(args.target):
-        run_shell_command(
-            ["git", "rebase", f"{args.remote}/{args.target}", args.target],
-            quiet=not args.verbose,
-        )
+        target_worktree = branch_checked_out_in_other_worktree(args.target)
+        if target_worktree is None:
+            run_shell_command(
+                ["git", "rebase", f"{args.remote}/{args.target}", args.target],
+                quiet=not args.verbose,
+            )
+        else:
+            log(
+                h(
+                    f"Skipping update of local branch {args.target}: checked out in"
+                    f" worktree at {target_worktree}."
+                ),
+                level=1,
+            )
     run_shell_command(
         ["git", "rebase", f"{args.remote}/{args.target}", current_branch],
         quiet=not args.verbose,
