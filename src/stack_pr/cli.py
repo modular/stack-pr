@@ -1285,6 +1285,13 @@ def command_land(args: CommonArgs) -> None:
     # already be there from the metadata that commits need to have by that
     # point.
     set_base_branches(st, args.target)
+
+    # If the current branch contains commits from the stack, rebase it onto the
+    # updated stack tip in the end so it reuses the same rewritten commits as
+    # the PR branches.
+    top_commit = st[-1].commit.commit_id()
+    need_to_rebase_current = is_ancestor(top_commit, current_branch, verbose=args.verbose)
+
     print_stack(st, links=args.hyperlinks)
 
     # Verify that the stack is correct before trying to land it.
@@ -1293,6 +1300,11 @@ def command_land(args: CommonArgs) -> None:
     # All good, land the bottommost PR!
     land_pr(st[0], remote=args.remote, target=args.target, verbose=args.verbose)
 
+    # Refresh the local view of the target branch after the merge.
+    run_shell_command(["git", "fetch", "--prune", args.remote], quiet=not args.verbose)
+
+    current_branch_base = f"{args.remote}/{args.target}"
+
     # The rest of the stack now needs to be rebased.
     if len(st) > 1:
         log(h("Rebasing the rest of the stack"), level=1)
@@ -1300,6 +1312,13 @@ def command_land(args: CommonArgs) -> None:
         print_stack(prs_to_rebase, links=args.hyperlinks, level=1)
         for e in prs_to_rebase:
             rebase_pr(e, remote=args.remote, target=args.target, verbose=args.verbose)
+
+        # Resolve the rewritten tip to a commit hash before the local stack
+        # branches are deleted below.
+        current_branch_base = get_command_output(
+            ["git", "rev-parse", prs_to_rebase[-1].head]
+        ).strip()
+
         # Change the target of the new bottom-most PR in the stack to 'target'
         run_shell_command(
             ["gh", "pr", "edit", prs_to_rebase[0].pr, "-B", args.target],
@@ -1317,10 +1336,12 @@ def command_land(args: CommonArgs) -> None:
             ["git", "rebase", f"{args.remote}/{args.target}", args.target],
             quiet=not args.verbose,
         )
-    run_shell_command(
-        ["git", "rebase", f"{args.remote}/{args.target}", current_branch],
-        quiet=not args.verbose,
-    )
+
+    rebase_base = current_branch_base if need_to_rebase_current else f"{args.remote}/{args.target}"
+    cmd = ["git", "rebase", rebase_base, current_branch]
+    if need_to_rebase_current:
+        cmd.append("--committer-date-is-author-date")
+    run_shell_command(cmd, quiet=not args.verbose)
 
     log(h(blue("SUCCESS!")))
 
