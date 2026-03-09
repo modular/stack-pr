@@ -76,6 +76,36 @@ def branch_exists(branch: str, repo_dir: Path | None = None) -> bool:
     raise GitError("Not inside a valid git repository.")
 
 
+def branch_checked_out_in_other_worktree(
+    branch: str, repo_dir: Path | None = None
+) -> Path | None:
+    """Return the worktree path if the branch is checked out elsewhere."""
+    try:
+        worktree_info = get_command_output(
+            ["git", "worktree", "list", "--porcelain"], cwd=repo_dir
+        )
+    except subprocess.CalledProcessError as e:
+        if e.returncode == GIT_NOT_A_REPO_ERROR:
+            raise GitError("Not inside a valid git repository.") from e
+        raise
+
+    current_root = get_repo_root(repo_dir).resolve()
+    current_worktree: Path | None = None
+
+    for line in worktree_info.splitlines():
+        if line.startswith("worktree "):
+            current_worktree = Path(line.removeprefix("worktree ")).resolve()
+            continue
+        if not line.startswith("branch refs/heads/") or current_worktree is None:
+            continue
+        if line.removeprefix("branch refs/heads/") != branch:
+            continue
+        if current_worktree != current_root:
+            return current_worktree
+
+    return None
+
+
 def get_current_branch_name(repo_dir: Path | None = None) -> str:
     """Returns the name of the branch currently checked out.
 
