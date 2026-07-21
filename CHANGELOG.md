@@ -1,5 +1,7 @@
 # Top of tree
 
+* Print a summary of the stack's PR URLs at the end of `submit` and `view`. (#50)
+
 # Version 0.1.3
 
 * Fix a bug with replacing $USERNAME in the branch name. (#44)
