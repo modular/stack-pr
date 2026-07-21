@@ -563,6 +563,19 @@ def print_stack(st: list[StackEntry], *, links: bool, level: int = 1) -> None:
         log("   * " + e.pprint(links=links), level=level)
 
 
+def print_pr_summary(st: list[StackEntry], *, level: int = 1) -> None:
+    # Print a plain, copy-pasteable list of the stack's PR URLs. Entries without a
+    # PR are skipped, and nothing is printed at all if the stack has no PRs (e.g.
+    # a 'view' on a stack that hasn't been exported yet).
+    if not any(e.has_pr() for e in st):
+        return
+    log(b("PRs:"), level=level)
+    for e in reversed(st):
+        if not e.has_pr():
+            continue
+        log("   * " + e.pr, level=level)
+
+
 def draft_bitmask_type(value: str) -> list[bool]:
     # Validate that only 0s and 1s are present
     if value and not set(value).issubset({"0", "1"}):
@@ -1157,6 +1170,9 @@ def command_submit(
 
     delete_local_branches(st, verbose=args.verbose)
     print_tips_after_export(st, args)
+    # Printed unconditionally (not gated behind --show-tips): the PR URLs are core
+    # output, not a usage hint.
+    print_pr_summary(st)
     log(h(blue("SUCCESS!")), level=1)
 
 
@@ -1484,6 +1500,7 @@ def command_view(args: CommonArgs) -> None:
     set_base_branches(st, target=args.target)
     print_stack(st, links=args.hyperlinks)
     print_tips_after_view(st, args)
+    print_pr_summary(st)
     log(h(blue("SUCCESS!")))
 
 

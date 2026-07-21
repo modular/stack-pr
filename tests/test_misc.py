@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import sys
 import tempfile
 from pathlib import Path
@@ -7,11 +9,14 @@ sys.path.append(str(Path(__file__).parent.parent / "src"))
 import pytest
 
 from stack_pr.cli import (
+    CommitHeader,
+    StackEntry,
     generate_available_branch_name,
     generate_branch_name,
     get_branch_id,
     get_gh_username,
     get_taken_branch_ids,
+    print_pr_summary,
 )
 from stack_pr.git import git_config, is_rebase_in_progress
 
@@ -123,3 +128,40 @@ def test_is_rebase_in_progress() -> None:
         # Test with None repo_dir (current directory)
         # This should not raise an error even if .git doesn't exist in cwd
         assert not is_rebase_in_progress(None)
+
+
+def _entry(pr: str | None) -> StackEntry:
+    # print_pr_summary only reads .has_pr()/.pr, so an empty commit header is fine.
+    return StackEntry(CommitHeader(""), _pr=pr)
+
+
+def test_print_pr_summary_lists_prs_top_of_stack_first(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    st = [
+        _entry("https://github.com/o/r/pull/1"),
+        _entry("https://github.com/o/r/pull/2"),
+    ]
+    print_pr_summary(st)
+    out = capsys.readouterr().out
+    assert "https://github.com/o/r/pull/1" in out
+    assert "https://github.com/o/r/pull/2" in out
+    # Ordering matches print_stack (top of the stack, i.e. the last entry, first).
+    assert out.index("pull/2") < out.index("pull/1")
+
+
+def test_print_pr_summary_skips_entries_without_a_pr(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    st = [_entry("https://github.com/o/r/pull/1"), _entry(None)]
+    print_pr_summary(st)
+    out = capsys.readouterr().out
+    assert "https://github.com/o/r/pull/1" in out
+    assert out.count("http") == 1
+
+
+def test_print_pr_summary_prints_nothing_when_no_prs(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    print_pr_summary([_entry(None), _entry(None)])
+    assert capsys.readouterr().out == ""
